@@ -3,6 +3,7 @@ from __future__ import annotations
 import hmac
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import FastAPI, Form, HTTPException, Request
@@ -57,16 +58,33 @@ def _require(request: Request) -> None:
 def _run_context() -> list[dict[str, Any]]:
     runs = fetch_all("select * from research_runs order by created_at desc")
     reports = fetch_all("select * from phase_reports order by created_at desc")
+    tranches = fetch_all("select * from research_tranches order by phase,sequence_no")
+    running = fetch_all(
+        """
+        select distinct on (run_id) run_id,stage,partition_key,heartbeat_at,row_count,attempts,max_attempts
+          from work_partitions where status='running'
+         order by run_id,heartbeat_at desc nulls last
+        """
+    )
     reports_by_run: dict[str, list[dict[str, Any]]] = {}
+    tranches_by_run: dict[str, list[dict[str, Any]]] = {}
+    running_by_run = {str(row["run_id"]): row for row in running}
     for report in reports:
         reports_by_run.setdefault(str(report["run_id"]), []).append(report)
+    for tranche in tranches:
+        tranche["standalone_ready"] = bool(tranche.get("standalone_report_object_path"))
+        tranche["cumulative_ready"] = bool(tranche.get("cumulative_report_object_path"))
+        tranches_by_run.setdefault(str(tranche["run_id"]), []).append(tranche)
+    now = datetime.now(timezone.utc)
     for run in runs:
-        run["reports"] = reports_by_run.get(str(run["id"]), [])
+        run_id = str(run["id"])
+        run["reports"] = reports_by_run.get(run_id, [])
+        run["tranches"] = tranches_by_run.get(run_id, [])
         progress = run.get("progress") or {}
         stages = []
         total_all = completed_all = 0
         for stage, counts in progress.items():
-            if stage == "phase" or not isinstance(counts, dict):
+            if stage in {"phase", "tranche_key"} or not isinstance(counts, dict):
                 continue
             total = int(counts.get("total") or 0)
             completed = int(counts.get("completed") or 0)
@@ -74,13 +92,9 @@ def _run_context() -> list[dict[str, Any]]:
             completed_all += completed
             stages.append(
                 {
-                    "name": stage,
-                    "label": stage.replace("_", " ").title(),
-                    "total": total,
-                    "completed": completed,
-                    "running": int(counts.get("running") or 0),
-                    "queued": int(counts.get("queued") or 0),
-                    "failed": int(counts.get("failed") or 0),
+                    "name": stage,"label": stage.replace("_", " ").title(),"total": total,
+                    "completed": completed,"running": int(counts.get("running") or 0),
+                    "queued": int(counts.get("queued") or 0),"failed": int(counts.get("failed") or 0),
                     "pct": round(completed / total * 100, 1) if total else 0,
                 }
             )
@@ -88,10 +102,20 @@ def _run_context() -> list[dict[str, Any]]:
         run["overall_pct"] = round(completed_all / total_all * 100, 1) if total_all else 0
         run["active"] = run["status"] in {"running", "confirmation_running"}
         run["can_unlock"] = (
-            run["run_kind"] == "full"
-            and run["status"] == "primary_complete"
-            and bool(run.get("primary_gate_passed"))
+            run["run_kind"] == "full" and run["status"] == "primary_complete"
+            and bool(run.get("primary_gate_passed")) and not bool(run.get("early_futility_stopped"))
         )
+        active = running_by_run.get(run_id)
+        run["active_partition"] = active
+        if active and active.get("heartbeat_at"):
+            age = max(0, int((now - active["heartbeat_at"]).total_seconds()))
+            run["heartbeat_age_seconds"] = age
+            run["heartbeat_label"] = f"{age // 60}m {age % 60}s"
+            run["heartbeat_state"] = "stale" if age > settings.stale_partition_minutes * 60 else "healthy"
+        else:
+            run["heartbeat_age_seconds"] = None
+            run["heartbeat_label"] = "No active partition"
+            run["heartbeat_state"] = "idle"
     return runs
 
 
@@ -194,6 +218,21 @@ def unlock(request: Request, run_id: str):
     _require(request)
     unlock_confirmation(run_id)
     return RedirectResponse("/", status_code=303)
+
+
+@app.get("/runs/{run_id}/tranches/{tranche_key}/{scope}/download")
+def tranche_report_download(request: Request, run_id: str, tranche_key: str, scope: str):
+    _require(request)
+    if scope not in {"standalone", "cumulative"}:
+        raise HTTPException(status_code=400, detail="Unknown interim report scope")
+    column = "standalone_report_object_path" if scope == "standalone" else "cumulative_report_object_path"
+    report = fetch_one(
+        f"select {column} object_path from research_tranches where run_id=%s and tranche_key=%s",
+        (run_id, tranche_key),
+    )
+    if not report or not report.get("object_path"):
+        raise HTTPException(status_code=404, detail="Interim report not ready")
+    return RedirectResponse(StorageClient().signed_url(report["object_path"]), status_code=303)
 
 
 @app.get("/runs/{run_id}/reports/{phase}/download")

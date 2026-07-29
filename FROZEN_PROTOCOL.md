@@ -1,68 +1,73 @@
-# Frozen execution protocol
+# Frozen research protocol — v1.1.0
 
-The application tests one previously discovered signal and does not perform further strategy discovery.
+## Research question
 
-## Signal
+At 17:00 Europe/London, does buying up to five US equities whose last eligible SIP trade is strictly more than 13.776879223878035% above the previous regular-session close produce positive, robust, executable intraday returns?
 
-At exactly **17:00 Europe/London**, identify every primary-universe US equity whose last SIP trade available at or before that decision time is strictly greater than **13.776879223878035%** above its previous regular-session close.
+## Locked signal
 
-- The previous close and decision-time price are raw prices.
-- A split effective on the tested date excludes that symbol-day.
-- The exact signal trade must be no more than 300 seconds old.
-- The daily ranking is descending by exact return; at most five signal trades are selected.
-- Every qualifier is retained, including unselected qualifiers.
+- Long only.
+- Decision timestamp: exactly 17:00 Europe/London, converted by date to New York time.
+- Comparison: strictly greater than 13.776879223878035%.
+- Denominator: previous regular-session close.
+- Numerator: last qualifying SIP trade at or before the decision timestamp.
+- Maximum signal-trade age: 300 seconds.
+- Maximum five selections per date, ranked by exact return descending.
+- No future-high, future-volume or future-liquidity prefilter.
 
-## Historical isolation
+## Primary sequence
 
-- Primary replication: 1 January 2024–31 December 2025.
-- Locked confirmation: 1 January 2026–19 April 2026.
-- The April–July 2026 discovery/validation/sealed-test period is excluded.
-- The confirmation phase can be opened only if the primary phase passes every frozen gate and the protocol hash is unchanged.
+The primary period remains 1 January 2024 through 31 December 2025, but is processed sequentially as eight locked tranches:
 
-## Universe
+| Sequence | Tranche | Start | End |
+|---:|---|---|---|
+| 1 | 2024 Q1 | 2024-01-01 | 2024-03-31 |
+| 2 | 2024 Q2 | 2024-04-01 | 2024-06-30 |
+| 3 | 2024 Q3 | 2024-07-01 | 2024-09-30 |
+| 4 | 2024 Q4 | 2024-10-01 | 2024-12-31 |
+| 5 | 2025 Q1 | 2025-01-01 | 2025-03-31 |
+| 6 | 2025 Q2 | 2025-04-01 | 2025-06-30 |
+| 7 | 2025 Q3 | 2025-07-01 | 2025-09-30 |
+| 8 | 2025 Q4 | 2025-10-01 | 2025-12-31 |
 
-The primary result reproduces the earlier methodology: the complete set of current Alpaca US-equity assets that are active and tradable when the run catalogue is captured, excluding OTC unless separately entitled.
+Each completed tranche produces both standalone and cumulative reports.
 
-The report also includes:
+## Interim interpretation
 
-- a Massive-classified common-stock sensitivity;
-- an expanded active/inactive Alpaca market-data sensitivity.
+- A positive quarter is descriptive and may only support continuing.
+- A positive cumulative interim report cannot pass the primary gate.
+- Confirmation cannot be opened before all eight quarters complete.
+- No threshold, stop, target, ranking, universe, reaction time, cost or gate may be altered between tranches.
 
-These are sensitivities, not replacements for the primary population.
+## Early-futility rule
+
+The app automatically stops the primary study only when cumulative evidence meets all of these locked conditions:
+
+1. At least 30 completed base-case trades.
+2. At least 15 independent dates.
+3. At least 10 symbols.
+4. Base-case net P&L is negative.
+5. Base-case mean net return is negative.
+6. Conservative-case net P&L is negative.
+7. The upper bound of the date-block bootstrap 95% confidence interval for mean base-case return is no greater than zero.
+
+The resulting classification is `rejected_early_for_futility`. Confirmation remains sealed.
+
+## Full primary gate
+
+If futility is not triggered, all eight quarters must complete. The original primary gate remains unchanged, including minimum sample size, positive net P&L, profit factor, mean and median return, conservative survival, top-winner exclusion, positive lower bootstrap bound, drawdown, loss streak, unresolved exits and concentration limits.
+
+## Locked confirmation
+
+- Period: 1 January 2026 through 19 April 2026.
+- It can be opened only after the complete primary gate passes.
+- The app rechecks the protocol hash at unlock and throughout confirmation.
+- The excluded discovery period starts 20 April 2026.
 
 ## Execution
 
-All scenarios request US$500, use whole shares, and require the requested order to be small relative to the preceding minute's dollar volume. Fractional fills are not modelled because point-in-time fractional eligibility cannot be reconstructed reliably.
+The optimistic, base and conservative cases remain exactly those encoded in `app/protocol.py`, including reaction delays, SIP quote freshness, displayed capacity, volume participation, slippage, 5% stop, 150%-of-previous-close target, 15:55 ET exit and effective-dated fees.
 
-| Scenario | Reaction | Additional adverse slippage | Displayed-size requirement |
-|---|---:|---:|---:|
-| Optimistic | 5 seconds | Greater of 5 bps or 10% of spread | 1× shares |
-| Base | 30 seconds | Greater of 10 bps or 25% of spread | 1× shares |
-| Conservative | 60 seconds | Greater of 25 bps or 50% of spread | 2× shares |
+## Protocol hash
 
-Entry uses the first valid SIP NBBO ask during the five-second entry window. Quotes must be no more than one second old. Missing, locked/crossed or insufficiently sized quotes do not fill.
-
-## Exits
-
-- Stop trigger: 5% below actual entry fill.
-- Profit target: 150% of previous regular-session close.
-- Time exit: 15:55 America/New_York.
-- Triggered exits use the first fresh, sufficiently sized executable bid with scenario slippage.
-- A halt or missing executable bid through the close is forced overnight exposure and remains unresolved for the intraday profitability gate.
-- A secondary next-session quote is recorded diagnostically but does not repair the intraday result.
-
-## Costs
-
-The simulation applies effective-dated SEC Section 31 fees, FINRA TAF rates/caps and the official CAT LLC per-share schedule on both entry and exit. SEC and TAF are rounded up to the cent. Additional broker-specific fees are disclosed as unmodelled rather than altered through environment variables.
-
-## Controls
-
-Each selected signal receives one same-date liquidity-matched control and one deterministic random control. Controls are executed under the same assumptions, but are not included in portfolio P&L.
-
-## Acceptance gate
-
-The frozen gate includes minimum sample breadth, positive base-case P&L and mean/median returns, profit factor of at least 1.25, nonnegative conservative P&L, positive P&L after removing the three largest winners, a positive date-block bootstrap lower bound, maximum drawdown of US$5,000, concentration limits, no more than ten consecutive losses and no more than 1% unresolved exits.
-
-Passing both phases means **validated for paper testing**, not live trading.
-
-The machine-readable source of truth is `app/protocol.py`; every run stores its SHA-256 protocol hash.
+The canonical JSON in `app/protocol.py` is SHA-256 hashed. Quarterly boundaries and the futility rule are part of that hash. A code or protocol change after confirmation unlock produces `invalid_process`.

@@ -1,33 +1,47 @@
-# Troubleshooting
+# Troubleshooting — v1.1.0
 
-## The web service exits immediately
+## The percentage has not moved
 
-Check `APP_PASSWORD` and `SESSION_SECRET`. The password cannot be a placeholder and the session secret must contain at least 32 characters.
+A progress bar advances when a partition completes. Check the heartbeat panel:
 
-## The worker exits immediately
+- **Worker active:** the partition heartbeat is recent.
+- **Possible stale partition:** heartbeat is older than the configured 20-minute threshold.
+- **Worker between partitions:** no partition is currently claimed.
 
-The worker requires `ALPACA_API_KEY`, `ALPACA_API_SECRET` and `MASSIVE_API_KEY`.
+Also inspect Render worker logs for `Processing partition`, `Partition completed`, `Partition failed` or `Worker loop error`.
 
-## The progress bar appears stationary
+## A quarter appears stuck after simulations
 
-Open the stage details. Large all-symbol bar and decision partitions can run for a long time while their page cursor advances. Check the worker log for current partition keys and Supabase `work_partitions.heartbeat_at`.
+The app waits for all raw SIP, simulation and overnight-follow-up partitions before creating the tranche report. Inspect failed or queued partitions in Supabase. Do not start another full run.
 
-## A run failed after hours or days
+## Run status is failed
 
-Select **Retry and resume** on the same run. Completed partitions, raw pages and simulations are idempotent and are not repeated unnecessarily.
+1. Read the last error in the dashboard or Render logs.
+2. Correct the credential, entitlement, quota or database issue.
+3. Select **Retry and resume**.
 
-## The full-run button produces a database uniqueness error
+Attempts and cursors are reset only for failed/cancelled partitions. Completed work remains untouched.
 
-The schema permits one full confirmatory run. Use the existing run. This blocks accidental repeated testing of the same historical periods.
+## Old v1.0 run reports protocol mismatch
 
-## Confirmation cannot be opened
+This is expected after upgrading. Quarterly looks and futility stopping constitute a new protocol. Create a new v1.1 full run. Migration 002 permits one full run per protocol hash, so the old run remains preserved.
 
-That is deliberate unless every primary gate passed. A positive P&L alone is insufficient.
+## Early futility stopped the study
 
-## A forced overnight trade has a later price in metadata
+This is a final pre-registered rejection for this protocol, not a technical failure. Download the latest cumulative report. The confirmation period remains inaccessible.
 
-The later quote is diagnostic only. The trade remains unresolved for the intraday gate because the intended 15:55 ET liquidation was not executable.
+## A quarter is profitable but the app continues
 
-## Fee or quantity questions
+Correct behaviour. Positive interim results cannot validate the strategy. All eight primary quarters must complete and the final primary gate must pass.
 
-Research fee schedules are hard-coded and included in the protocol hash. Do not add a fee environment variable. The primary simulation uses whole shares only; historical fractional eligibility is not inferred from current asset metadata.
+## Render Blueprint rejects maxShutdownDelaySeconds
+
+Use the v1.1 package. The worker has a persistent disk and therefore does not include `maxShutdownDelaySeconds`.
+
+## HTTP 429
+
+Reduce the relevant request limit, redeploy the worker and resume the same run. Do not clear the database.
+
+## Missing table research_tranches
+
+Deploy the web service first and verify migration `002_quarterly_tranches.sql` completed before starting the worker.

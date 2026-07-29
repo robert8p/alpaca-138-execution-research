@@ -38,6 +38,7 @@ class MetricSet:
     maximum_consecutive_losses: int
     pnl_excluding_three_largest_winners: float | None
     bootstrap_95pct_lower_mean_return: float | None
+    bootstrap_95pct_upper_mean_return: float | None
     single_symbol_profit_share: float | None
     single_date_profit_share: float | None
     independent_dates: int
@@ -75,14 +76,19 @@ def _loss_streak(values: list[float]) -> int:
     return best
 
 
-def _bootstrap_lower(frame: pd.DataFrame, seed_material: str, iterations: int = 5000) -> float | None:
+def _bootstrap_bounds(
+    frame: pd.DataFrame, seed_material: str, iterations: int = 5000
+) -> tuple[float | None, float | None]:
     completed = frame.dropna(subset=["net_return_pct"]).copy()
     if completed.empty:
-        return None
+        return None, None
     dates = sorted(completed["trade_date"].astype(str).unique())
     if len(dates) < 2:
-        return None
-    grouped = {d: completed.loc[completed["trade_date"].astype(str) == d, "net_return_pct"].to_numpy(float) for d in dates}
+        return None, None
+    grouped = {
+        d: completed.loc[completed["trade_date"].astype(str) == d, "net_return_pct"].to_numpy(float)
+        for d in dates
+    }
     seed = int(hashlib.sha256(seed_material.encode()).hexdigest()[:16], 16) % (2**32)
     rng = np.random.default_rng(seed)
     means = np.empty(iterations, dtype=float)
@@ -90,8 +96,11 @@ def _bootstrap_lower(frame: pd.DataFrame, seed_material: str, iterations: int = 
         sampled = rng.choice(dates, size=len(dates), replace=True)
         values = np.concatenate([grouped[d] for d in sampled])
         means[i] = float(np.mean(values))
-    return float(np.quantile(means, 0.025))
+    return float(np.quantile(means, 0.025)), float(np.quantile(means, 0.975))
 
+
+def _bootstrap_lower(frame: pd.DataFrame, seed_material: str, iterations: int = 5000) -> float | None:
+    return _bootstrap_bounds(frame, seed_material, iterations)[0]
 
 def _metric_set(
     frame: pd.DataFrame,
@@ -131,6 +140,7 @@ def _metric_set(
     sorted_pnl = completed["net_pnl"].astype(float).tolist() if not completed.empty else []
     without_top3 = completed.sort_values("net_pnl", ascending=False).iloc[3:] if len(completed) > 3 else completed.iloc[0:0]
     unresolved = int(filled["unresolved"].fillna(False).astype(bool).sum()) if not filled.empty else 0
+    bootstrap_lower, bootstrap_upper = _bootstrap_bounds(completed, seed_material)
     return MetricSet(
         cohort=cohort,
         scenario=scenario,
@@ -150,7 +160,8 @@ def _metric_set(
         maximum_drawdown=_drawdown(daily),
         maximum_consecutive_losses=_loss_streak(sorted_pnl),
         pnl_excluding_three_largest_winners=_f(without_top3["net_pnl"].sum()) if not without_top3.empty else 0.0,
-        bootstrap_95pct_lower_mean_return=_bootstrap_lower(completed, seed_material),
+        bootstrap_95pct_lower_mean_return=bootstrap_lower,
+        bootstrap_95pct_upper_mean_return=bootstrap_upper,
         single_symbol_profit_share=symbol_share,
         single_date_profit_share=date_share,
         independent_dates=int(completed["trade_date"].nunique()) if not completed.empty else 0,

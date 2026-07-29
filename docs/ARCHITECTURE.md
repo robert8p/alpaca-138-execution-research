@@ -1,59 +1,63 @@
-# Architecture
+# Architecture — v1.1.0
 
-## Independence boundary
+## Isolation
 
-This application has no dependency on the Market Data Miner or any earlier gainer scanner. It expects:
+The application uses its own GitHub repository, Supabase project and Render web/worker services. It has no runtime dependency on the Market Data Miner.
 
-- a new private GitHub repository;
-- a new Supabase project and private Storage bucket;
-- one new Render web service;
-- one new Render background worker.
+## Control plane
 
-Only the market-data provider accounts may be reused. Their account-level rate limits remain shared.
+The web service:
 
-## Research workflow
+- applies migrations;
+- authenticates the dashboard;
+- creates smoke and full runs;
+- exposes progress, heartbeat and tranche state;
+- signs private Storage report downloads;
+- controls cancel, resume and confirmation unlock.
+
+## Worker
+
+One resumable worker performs:
+
+1. shared Alpaca catalogue;
+2. shared Massive reference reconstruction;
+3. tranche calendar and splits;
+4. tranche daily bars;
+5. decision-time cross-sections;
+6. exact SIP signal verification;
+7. daily signal/control selection;
+8. raw SIP trades and quotes;
+9. execution simulations;
+10. overnight diagnostics;
+11. standalone and cumulative tranche reports;
+12. final phase report after all required tranches.
+
+## Quarterly state machine
 
 ```text
-Alpaca asset catalogue + Massive reference catalogue
-                         ↓
-Alpaca calendar + Massive split history
-                         ↓
-Raw SIP daily bars for every selected symbol
-                         ↓
-Decision-time one-minute cross-section at 17:00 Europe/London
-                         ↓
-Exact last eligible SIP-trade verification
-                         ↓
-Daily rank and maximum-five selection
-                         ↓
-Raw SIP trades and quotes for signal, sensitivity and control targets
-                         ↓
-Optimistic / base / conservative execution simulation
-                         ↓
-Frozen gate, audit tables and private report ZIP
+2024 Q1 → interim reports → futility check
+    ↓ continue only
+2024 Q2 → interim reports → futility check
+    ↓
+...
+    ↓
+2025 Q4 → final primary report → frozen gate
+    ↓ only if PASS
+2026 locked confirmation → final confirmation report
 ```
 
-A daily bar's future high is never used to decide which symbol-day enters the signal test. One-minute bars completed by the decision timestamp are only an efficient, non-lookahead screen for exact trade verification.
+`research_tranches` stores each locked period, status, report paths, metrics and futility assessment. Work partition keys are prefixed by tranche, preventing collisions and making each quarter independently resumable.
 
-## Resume model
+## Early stopping
 
-`work_partitions` is the durable queue. Each item has a unique `(run_id, phase, stage, partition_key)` key, attempts, page cursor, row count and heartbeat. Workers claim with `FOR UPDATE SKIP LOCKED`.
+Only the cumulative base and conservative signal cohorts feed the futility rule. Controls and standalone-quarter results cannot stop or validate the study. Early stopping is automatic only when every hard-coded negative condition passes.
 
-- API pages are checkpointed after durable database/Storage writes.
-- Stale running partitions are reclaimed.
-- Automatic retries use exponential backoff.
-- Manual **Retry and resume** resets exhausted attempts without deleting completed work.
-- Cancelled queued/running work is marked for safe requeue.
-- Raw trades/quotes are compressed in Supabase Storage and indexed in PostgreSQL.
-- Duplicate symbol-days across the primary and sensitivity cohorts share the same raw SIP cache.
+## Storage
 
-## Sealed confirmation
+- PostgreSQL: catalogues, sessions, bars, decision snapshots, triggers, targets, partition checkpoints, trade results, tranche state and report indexes.
+- Supabase Storage: compressed raw SIP pages and signed report ZIPs.
+- Render disk: temporary resumable processing files under `/var/data`.
 
-The confirmation period cannot be queued until the primary gate passes. The complete protocol is canonicalised and SHA-256 hashed. The hash is checked at unlock, during confirmation orchestration and when the report is built. Any mismatch produces `invalid_process`.
+## Integrity
 
-## Security
-
-- Browser access uses a password-protected session.
-- The Supabase service-role key is server-side only.
-- Storage is private and reports are delivered through expiring signed URLs.
-- No order-placement endpoint or broker trading method exists.
+The protocol hash includes the hypothesis, universes, execution scenarios, primary and confirmation dates, quarterly boundaries, complete gate and futility rule. Confirmation is invalidated if the hash changes after unlock.

@@ -14,7 +14,7 @@ def test_signal_is_exactly_frozen():
 def test_protocol_hash_is_canonical_and_stable():
     assert canonical_json() == canonical_json()
     assert len(protocol_hash()) == 64
-    assert protocol_hash() == "3fc98c787bd375ca7daae92e0c73c53f46c0620f3c82e2d1f767c53939102b2c"
+    assert protocol_hash() == "ddce449bdd0c6dc6f720e67ff6964bb1dbbe37d6b7429c5455eded1afd630ca2"
 
 
 def test_confirmation_precedes_excluded_discovery_period():
@@ -38,3 +38,21 @@ def test_quantity_and_fee_schedule_are_frozen():
     schedule = PROTOCOL["fees"]["cat_llc_per_side_schedule"]
     assert schedule[1]["usd_per_share"] == 0.000035
     assert schedule[-1]["end_inclusive"] == "2026-04-19"
+
+
+def test_primary_is_locked_into_eight_quarterly_tranches():
+    tranches = PROTOCOL["quarterly_tranches"]["primary"]
+    assert len(tranches) == 8
+    assert tranches[0]["start"] == "2024-01-01"
+    assert tranches[-1]["end_inclusive"] == "2025-12-31"
+    assert [item["sequence_no"] for item in tranches] == list(range(1, 9))
+    assert PROTOCOL["quarterly_tranches"]["early_validation_forbidden"] is True
+
+
+def test_futility_rule_is_negative_only_and_pre_registered():
+    gate = PROTOCOL["early_futility_gate"]
+    assert gate["enabled"] is True
+    assert gate["base_net_pnl_negative"] is True
+    assert gate["conservative_net_pnl_negative"] is True
+    assert gate["date_block_bootstrap_95pct_upper_mean_return_nonpositive"] is True
+    assert gate["action"].startswith("automatically_stop")

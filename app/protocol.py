@@ -5,13 +5,13 @@ import json
 from datetime import date
 from typing import Any
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 STRATEGY_ID = "alpaca_17london_return_gt_13_776879"
 
 # Research values are deliberately hard-coded. Operational environment variables
 # cannot change the hypothesis after outcomes are observed.
 PROTOCOL: dict[str, Any] = {
-    "protocol_version": "1.0.0",
+    "protocol_version": "1.1.0",
     "strategy_id": STRATEGY_ID,
     "research_status": "execution_backtest_required",
     "direction": "long",
@@ -29,6 +29,37 @@ PROTOCOL: dict[str, Any] = {
         "primary": {"start": "2024-01-01", "end_inclusive": "2025-12-31"},
         "confirmation": {"start": "2026-01-01", "end_inclusive": "2026-04-19"},
         "excluded_discovery_start": "2026-04-20",
+    },
+    "quarterly_tranches": {
+        "primary": [
+            {"tranche_key": "2024_q1", "sequence_no": 1, "label": "2024 Q1", "start": "2024-01-01", "end_inclusive": "2024-03-31"},
+            {"tranche_key": "2024_q2", "sequence_no": 2, "label": "2024 Q2", "start": "2024-04-01", "end_inclusive": "2024-06-30"},
+            {"tranche_key": "2024_q3", "sequence_no": 3, "label": "2024 Q3", "start": "2024-07-01", "end_inclusive": "2024-09-30"},
+            {"tranche_key": "2024_q4", "sequence_no": 4, "label": "2024 Q4", "start": "2024-10-01", "end_inclusive": "2024-12-31"},
+            {"tranche_key": "2025_q1", "sequence_no": 5, "label": "2025 Q1", "start": "2025-01-01", "end_inclusive": "2025-03-31"},
+            {"tranche_key": "2025_q2", "sequence_no": 6, "label": "2025 Q2", "start": "2025-04-01", "end_inclusive": "2025-06-30"},
+            {"tranche_key": "2025_q3", "sequence_no": 7, "label": "2025 Q3", "start": "2025-07-01", "end_inclusive": "2025-09-30"},
+            {"tranche_key": "2025_q4", "sequence_no": 8, "label": "2025 Q4", "start": "2025-10-01", "end_inclusive": "2025-12-31"},
+        ],
+        "confirmation": [
+            {"tranche_key": "2026_confirmation", "sequence_no": 1, "label": "2026 locked confirmation", "start": "2026-01-01", "end_inclusive": "2026-04-19"},
+        ],
+        "report_after_every_tranche": True,
+        "cumulative_reports": True,
+        "early_validation_forbidden": True,
+    },
+    "early_futility_gate": {
+        "enabled": True,
+        "earliest_primary_tranche": 1,
+        "minimum_completed_trades": 30,
+        "minimum_independent_dates": 15,
+        "minimum_symbols": 10,
+        "base_net_pnl_negative": True,
+        "base_mean_return_negative": True,
+        "conservative_net_pnl_negative": True,
+        "date_block_bootstrap_95pct_upper_mean_return_nonpositive": True,
+        "action": "automatically_stop_and_classify_rejected_early_for_futility",
+        "cannot_unlock_confirmation": True,
     },
     "universe": {
         "primary": "alpaca_us_equity_active_and_tradable_at_run_catalogue_snapshot",
@@ -124,6 +155,7 @@ PROTOCOL: dict[str, Any] = {
         "validated_for_paper_testing",
         "promising_but_unproven",
         "rejected",
+        "rejected_early_for_futility",
         "invalid_process",
     ],
 }

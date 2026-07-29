@@ -48,6 +48,7 @@ def process_partition(partition: dict[str, Any]) -> None:
         "execution_raw": process_execution_raw,
         "simulate": process_simulate,
         "overnight_followup": process_overnight_followup,
+        "tranche_report": process_tranche_report,
         "report": process_report,
     }.get(stage)
     if fn is None:
@@ -360,7 +361,10 @@ def process_decision_snapshot(partition: dict[str, Any]) -> None:
             )
         )
         if exact_required:
-            verify.append((symbol, {"trade_date": trade_date.isoformat(), "symbol": symbol, "decision_ts": decision_ts.isoformat()}))
+            verify.append((symbol, {
+                "trade_date": trade_date.isoformat(), "symbol": symbol,
+                "decision_ts": decision_ts.isoformat(), "tranche_key": params.get("tranche_key"),
+            }))
     with connection() as conn, conn.cursor() as cur:
         cur.executemany(
             """
@@ -389,9 +393,10 @@ def process_decision_snapshot(partition: dict[str, Any]) -> None:
         )
         conn.commit()
     for symbol, verify_params in verify:
+        tranche_key = str(verify_params.get("tranche_key") or "legacy")
         enqueue(
             str(partition["run_id"]), partition["phase"], "signal_verify",
-            f"{trade_date}:{symbol}", verify_params, priority=35,
+            f"{tranche_key}|{trade_date}:{symbol}", verify_params, priority=35,
         )
     complete(str(partition["id"]), row_count=len(values))
 
@@ -781,9 +786,11 @@ def process_simulate(partition: dict[str, Any]) -> None:
             )
         conn.commit()
     if any(r["forced_overnight"] for r in results) and target.get("next_session_open"):
+        tranche_key = str(partition.get("params", {}).get("tranche_key") or "legacy")
         enqueue(
-            str(partition["run_id"]), partition["phase"], "overnight_followup", str(target_id),
-            {"execution_target_id": str(target_id)}, priority=70,
+            str(partition["run_id"]), partition["phase"], "overnight_followup",
+            f"{tranche_key}|{target_id}",
+            {"execution_target_id": str(target_id), "tranche_key": tranche_key}, priority=70,
         )
     complete(str(partition["id"]), row_count=len(results))
 
@@ -830,6 +837,15 @@ def process_overnight_followup(partition: dict[str, Any]) -> None:
             cur.execute("update trade_results set metadata=%s where id=%s", (Jsonb(metadata), row["id"]))
         conn.commit()
     complete(str(partition["id"]), row_count=len(rows))
+
+
+def process_tranche_report(partition: dict[str, Any]) -> None:
+    from app.interim_reporting import build_tranche_reports
+
+    result = build_tranche_reports(
+        str(partition["run_id"]), partition["phase"], partition["params"]
+    )
+    complete(str(partition["id"]), row_count=result["trade_count"])
 
 
 def process_report(partition: dict[str, Any]) -> None:

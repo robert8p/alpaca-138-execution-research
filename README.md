@@ -1,73 +1,108 @@
-# Alpaca 13.8% Execution Research Lab v1.0.0
+# Alpaca 13.8% Execution Research Lab v1.1.0
 
-A completely independent, deployable research application that mines the historical US-equity data needed to test one frozen signal:
+A separate, research-only application that mines historical Alpaca SIP and Massive reference data and tests one frozen finding:
 
-> At 17:00 Europe/London, buy up to five stocks whose last available SIP trade is strictly more than 13.776879223878035% above the previous regular-session close.
+> At 17:00 Europe/London, select up to five US equities whose last eligible SIP trade is strictly more than 13.776879223878035% above the previous regular-session close.
 
-It then performs an execution-aware historical backtest using SIP trades and NBBO quotes. It contains no order-placement code.
+The app has no trading capability.
 
-## Why this app exists
+## What changed in v1.1.0
 
-The earlier matched-control study showed unusually strong discrimination, but could not establish market-wide signal frequency, fillability or profitability. This app tests those missing questions directly across the full Alpaca universe and a previously unused historical period.
+The 2024–2025 primary period is processed in eight pre-registered three-month tranches:
 
-## Research design
+1. 2024 Q1
+2. 2024 Q2
+3. 2024 Q3
+4. 2024 Q4
+5. 2025 Q1
+6. 2025 Q2
+7. 2025 Q3
+8. 2025 Q4
 
-- Exact frozen signal and threshold.
-- Primary 2024–2025 test.
-- Locked 1 January–19 April 2026 confirmation.
-- Full decision-time cross-section; no future-high or future-volume prefilter.
-- Exact SIP trade verification at the decision time.
-- Maximum five signals each day, ranked by exact return.
-- Optimistic, base and conservative NBBO execution scenarios.
-- Same-date liquidity-matched and deterministic random controls.
-- Effective-dated SEC, FINRA TAF and CAT LLC fees; broker-specific extras are disclosed as unmodelled.
-- Common-stock-only and expanded-universe sensitivities.
-- Whole-share execution only; fractional eligibility is not assumed historically.
-- Pre-registered profitability, uncertainty, drawdown and concentration gates.
+After every tranche the app creates:
 
-See `FROZEN_PROTOCOL.md`.
+- a standalone-quarter report;
+- a cumulative report from 1 January 2024 through that quarter;
+- a data-quality summary;
+- the full trade-level export;
+- a pre-registered early-futility assessment.
 
-## Resume and recovery
+A favourable interim report can never validate the strategy. Only completion of all eight quarters and passage of the complete frozen primary gate can unlock the 2026 confirmation period.
 
-Every expensive unit is an idempotent database partition with:
+## Pre-registered early-futility rule
 
-- a unique run/phase/stage/key;
-- a durable page cursor;
-- saved row count;
-- heartbeat and stale-worker reclamation;
-- exponential retry up to eight attempts;
-- compressed raw-page objects in private Supabase Storage;
-- deterministic inserts and exports.
+The study stops automatically and is classified `rejected_early_for_futility` only when cumulative results satisfy every condition:
 
-A Render restart resumes the same run. Use **Retry and resume** after a permanent failure; do not create a replacement run.
+- at least 30 completed base-case trades;
+- at least 15 independent trading dates;
+- at least 10 symbols;
+- negative base-case net P&L;
+- negative base-case mean return;
+- negative conservative-case net P&L;
+- the upper end of the date-block bootstrap 95% confidence interval is non-positive.
 
-## Services
+This is a negative-only stopping rule. There is no positive early-stopping or early-validation rule.
 
-- `alpaca-138-research-web`: password-protected research dashboard, migrations and signed report downloads.
-- `alpaca-138-research-worker`: catalogue, historical mining, exact signal verification, raw SIP collection, simulations and reports.
+## Execution cases
 
-The smoke run adds one explicitly labelled `smoke_probe` on its first session when needed. It proves the raw-data and simulation plumbing but is never treated as a qualifying signal or included in strategy P&L.
-- A new Supabase project used only by this app.
+The signal and execution assumptions remain frozen:
 
-## Output package
+- US$500 requested position;
+- maximum five trades per day;
+- 5/30/60-second optimistic/base/conservative reaction delays;
+- SIP NBBO execution and displayed-liquidity constraints;
+- additional adverse slippage by scenario;
+- 5% stop from actual fill with realistic gap execution;
+- target at 150% of the previous close;
+- 15:55 New York time exit;
+- effective-dated regulatory fees;
+- no leverage or position recycling.
 
-Each phase creates a private ZIP containing:
+See `FROZEN_PROTOCOL.md` for the complete specification.
 
-- `BACKTEST_REPORT.md`;
-- `backtest_triggers.csv/.parquet`;
-- `backtest_trades.csv/.parquet`;
-- `backtest_days.csv/.parquet`;
-- `strategy_summary.csv/.parquet`;
-- `preregistered_execution_spec.json`;
-- `profitability_gate.json`;
-- `data_quality.json`;
-- `manifest.json`.
+## Resume behaviour
 
-## Required data plans
+Every expensive operation is stored as an idempotent `work_partitions` row with:
 
-- Alpaca historical SIP access through Algo Trader Plus.
-- Massive Stocks Starter or higher, because complete split history is required from January 2024. The app refuses to start until both entitlements are explicitly acknowledged in the worker environment.
+- a unique partition key including the tranche;
+- status and attempt count;
+- durable API cursor;
+- row count;
+- heartbeat;
+- automatic stale-worker recovery;
+- exponential retry;
+- manual **Retry and resume** for exhausted attempts.
 
-## Deployment
+Completed quarters, data pages, simulations and reports are not repeated after a normal restart.
 
-Follow `DEPLOYMENT.md`. Begin with the smoke test. Do not open the confirmation period unless the dashboard exposes the locked-confirmation button after a primary pass.
+## UI
+
+The responsive control room shows:
+
+- current phase and quarter;
+- active partition and heartbeat age;
+- a visible stale-partition warning;
+- stage-level progress;
+- the locked eight-quarter sequence;
+- standalone and cumulative report downloads;
+- futility status;
+- safe cancel/resume controls;
+- final primary and confirmation reports.
+
+## Independent infrastructure
+
+Deploy with its own:
+
+- private GitHub repository;
+- Supabase project;
+- Render web service;
+- Render background worker;
+- Storage bucket.
+
+It must not share tables, workers or migrations with the Market Data Miner.
+
+## Important v1.0 upgrade rule
+
+Adding quarterly looks and a futility rule changes the pre-registered protocol. Existing v1.0 full runs remain preserved but cannot be continued as valid v1.1 studies. Migration 002 permits one full run per immutable protocol hash, so create a new v1.1 full run after deployment.
+
+A v1.0 smoke test may simply be replaced with a new v1.1 smoke test.

@@ -101,3 +101,22 @@ def test_cancel_marks_queued_and_running_partitions_for_resume():
     source = (ROOT / "app" / "orchestrator.py").read_text()
     cancel = source[source.index("def cancel_run"):source.index("def unlock_confirmation")]
     assert "status in ('queued','running')" in cancel
+
+
+def test_quarterly_reports_are_checkpointed_and_confirmation_stays_final_gate_only():
+    protocol = (ROOT / "app" / "protocol.py").read_text()
+    orchestrator = (ROOT / "app" / "orchestrator.py").read_text()
+    schema = (ROOT / "migrations" / "002_quarterly_tranches.sql").read_text().lower()
+    assert '"early_validation_forbidden": True' in protocol
+    assert '"tranche_report"' in orchestrator
+    assert "research_tranches" in schema
+    assert "standalone_report_object_path" in schema
+    assert "cumulative_report_object_path" in schema
+
+
+def test_worker_dashboard_surfaces_heartbeat_and_stale_state():
+    main = (ROOT / "app" / "main.py").read_text()
+    template = (ROOT / "app" / "templates" / "dashboard.html").read_text()
+    assert "heartbeat_age_seconds" in main
+    assert "stale_partition_minutes" in main
+    assert "Possible stale partition" in template

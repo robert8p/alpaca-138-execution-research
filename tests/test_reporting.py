@@ -61,3 +61,33 @@ def test_concentration_uses_total_net_profit_not_gross_winners():
     assert metrics.net_pnl == 20.0
     assert metrics.single_symbol_profit_share == 5.0
     assert metrics.single_date_profit_share == 5.0
+
+
+def test_bootstrap_upper_bound_is_deterministic():
+    frame = synthetic_frame()
+    first = _metric_set(frame, cohort="signal", scenario="base", population="all", seed_material="upper")
+    second = _metric_set(frame, cohort="signal", scenario="base", population="all", seed_material="upper")
+    assert first.bootstrap_95pct_upper_mean_return == second.bootstrap_95pct_upper_mean_return
+    assert first.bootstrap_95pct_upper_mean_return is not None
+
+
+def test_futility_requires_strong_negative_cumulative_evidence():
+    from app.interim_reporting import assess_futility
+
+    rows = []
+    for i in range(40):
+        base = {
+            "cohort": "signal", "common_stock_sensitivity": True, "fill_status": "filled",
+            "net_pnl": -5.0, "gross_pnl": -4.9, "fees": 0.1, "net_return_pct": -1.0,
+            "trade_date": f"2024-02-{(i % 20) + 1:02d}", "entry_ts": "2024-02-01T17:00:30Z",
+            "symbol": f"N{i % 12}", "unresolved": False, "target_hit": False, "stop_triggered": True,
+        }
+        rows.append({**base, "scenario": "base"})
+        rows.append({**base, "scenario": "conservative", "net_pnl": -7.0, "net_return_pct": -1.4})
+    frame = pd.DataFrame(rows)
+    base = _metric_set(frame, cohort="signal", scenario="base", population="all", seed_material="futility-base")
+    conservative = _metric_set(frame, cohort="signal", scenario="conservative", population="all", seed_material="futility-cons")
+    lookup = {("signal", "base", "all"): base, ("signal", "conservative", "all"): conservative}
+    assessment = assess_futility(lookup, phase="primary", run_kind="full", sequence_no=1)
+    assert assessment["eligible"] is True
+    assert assessment["stop"] is True
