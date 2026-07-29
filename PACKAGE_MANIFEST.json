@@ -1,0 +1,245 @@
+{
+  "architecture": "independent_research_only",
+  "built_at_utc": "2026-07-28T22:44:31.195068+00:00",
+  "file_count_excluding_manifest": 47,
+  "files": [
+    {
+      "path": ".dockerignore",
+      "sha256": "60a8674b30a1d5a66c9a9a21b8465b0ecc14831cce3d955288f7d7c9147b29cb",
+      "size_bytes": 95
+    },
+    {
+      "path": ".env.example",
+      "sha256": "cbf5d51b07798075692c300e4f3f70f97c1f3ecf3b19a092005b98260225d812",
+      "size_bytes": 904
+    },
+    {
+      "path": ".gitattributes",
+      "sha256": "02fa9c2731c3651253cba678a2d3b9253e139d18562016bcd999e1f628030e08",
+      "size_bytes": 127
+    },
+    {
+      "path": ".github/workflows/tests.yml",
+      "sha256": "919297e4c323670c03534205b66e76413afb2b47dbdb23d713fa73dfbbc07770",
+      "size_bytes": 321
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "0a6855610f9ae5bffe67e37a5ad144fc48da8620c81363c50305645a9fcf508b",
+      "size_bytes": 87
+    },
+    {
+      "path": "BUILD_VALIDATION.md",
+      "sha256": "b0e2283e1259eb65aba0c1c19f202c561b5783d5e1a04ab547627ab6a6202013",
+      "size_bytes": 1472
+    },
+    {
+      "path": "DEPLOYMENT.md",
+      "sha256": "625c5f7e28c0993b2386231f18ac8f3601082a021c501680f4618c0bc7bcaac2",
+      "size_bytes": 4545
+    },
+    {
+      "path": "Dockerfile",
+      "sha256": "7ccb4791ef5bec3a303be796e8017182503bbe7b82f5b98b9c21180315e8f9f2",
+      "size_bytes": 440
+    },
+    {
+      "path": "FROZEN_PROTOCOL.md",
+      "sha256": "54628ec493f2b6f1c7472cd7e91ec980395642cc39b03c887e6ee07b0d2ebf4a",
+      "size_bytes": 3895
+    },
+    {
+      "path": "README.md",
+      "sha256": "f3c81b6ce72196ef3b029071544897068324316fdc146582a8b9a809f2d95f11",
+      "size_bytes": 3368
+    },
+    {
+      "path": "TROUBLESHOOTING.md",
+      "sha256": "04163be8b4693c5afaba8d33d9e8312d5239867e318a334264fee6ab4e7d60b4",
+      "size_bytes": 1561
+    },
+    {
+      "path": "app/__init__.py",
+      "sha256": "27e8febb48ada44153ea2add9969a2c50a9831a74d9755fdd53c549a888b1cc2",
+      "size_bytes": 22
+    },
+    {
+      "path": "app/config.py",
+      "sha256": "7081131b541d9d22f7380659b4f793124416a5bfc167c35e22e653c2991cbad4",
+      "size_bytes": 4910
+    },
+    {
+      "path": "app/db.py",
+      "sha256": "f2aa67328bf03cf7a88365c9ef778f86481432205c1532440fc3b238f301a9d9",
+      "size_bytes": 1607
+    },
+    {
+      "path": "app/fees.py",
+      "sha256": "358a63a97bb1261bf38d2042f21a67ebdb67bb23a727be1aeac35b6215494b46",
+      "size_bytes": 2187
+    },
+    {
+      "path": "app/http.py",
+      "sha256": "064afe350d878a1dc73da6c2b133afc2bb637bae00199562cf397d3ecf359078",
+      "size_bytes": 1437
+    },
+    {
+      "path": "app/main.py",
+      "sha256": "0543c3efa1f6b41f573b566977e6e3e9262e3b86d083a931bb9d885c8647300f",
+      "size_bytes": 7395
+    },
+    {
+      "path": "app/migrate.py",
+      "sha256": "f542212b5ec1eb1b52e5c5112b39f263a11fb76295418237396fdf18b1eb2cb2",
+      "size_bytes": 1396
+    },
+    {
+      "path": "app/orchestrator.py",
+      "sha256": "f7fd1c3ea98e0a3fd84a8b6142d06aa88567cd1cdf6d2b80e9a73f4c10287daa",
+      "size_bytes": 15331
+    },
+    {
+      "path": "app/processors.py",
+      "sha256": "e21a6b2cd8cdcfbeb40c03b385eef9945dfa1bf8f389255264543466938d49ce",
+      "size_bytes": 42377
+    },
+    {
+      "path": "app/protocol.py",
+      "sha256": "b1df8377946718ef0d7db82f10a4653c883ce61f63494d0fe8a5b6bdda0d1705",
+      "size_bytes": 5567
+    },
+    {
+      "path": "app/providers.py",
+      "sha256": "2faafa7ec0133b89a384c1660da155ce796f53ac26672fd417cfa8fcae8d8d25",
+      "size_bytes": 5921
+    },
+    {
+      "path": "app/queue.py",
+      "sha256": "24591703d87e91ecc13fce44f5486d0ca0b6dc2a6fcf24ff4287cbf1a5ee66e0",
+      "size_bytes": 5429
+    },
+    {
+      "path": "app/rate_limit.py",
+      "sha256": "62bd87037ac1e4c9c5fdbd46aed20a0ef968ad47c40d0b397452285e8336cb69",
+      "size_bytes": 567
+    },
+    {
+      "path": "app/reporting.py",
+      "sha256": "9b8dfcc171bb5bb4333867d2bed61d4952a2407fd4bc7216141a51a1a5dacb93",
+      "size_bytes": 26308
+    },
+    {
+      "path": "app/simulation.py",
+      "sha256": "267d7b26237d78e68d5f12e2ebb02f0417e41d73a650e342fc6e57eb360dba33",
+      "size_bytes": 17443
+    },
+    {
+      "path": "app/static/app.css",
+      "sha256": "5b2e89c681f81f071de6bd4b0edfe63ac04d96395700bc9b3cbba966626c06ca",
+      "size_bytes": 8077
+    },
+    {
+      "path": "app/storage.py",
+      "sha256": "32e4a3b0d59249bd1e07dce2084133a19866d051de9aa9aaf1d623568e22a6dc",
+      "size_bytes": 3452
+    },
+    {
+      "path": "app/templates/dashboard.html",
+      "sha256": "d9173b8ae7db6dd2e96f8f733169762fc787b4530398dd6737e2fedcff137588",
+      "size_bytes": 6670
+    },
+    {
+      "path": "app/templates/login.html",
+      "sha256": "86d979ab522e338b567d412ac9197399ca97a5b6383b1bfaf59c7cbc569b125d",
+      "size_bytes": 1126
+    },
+    {
+      "path": "app/timeutils.py",
+      "sha256": "2a278a2d4f22b565bc4f4159acc64126159517f78b144b85c18048fae3497634",
+      "size_bytes": 938
+    },
+    {
+      "path": "app/trade_conditions.py",
+      "sha256": "5be3e39b63887653baa22e922eac7f4bfd07363a29e1e3b67a878050950b2266",
+      "size_bytes": 1182
+    },
+    {
+      "path": "app/worker.py",
+      "sha256": "86e12fffb334072d8e258e926dcfbe97cb453f4daa58d16951940a479625dedd",
+      "size_bytes": 2315
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "1e8d9fabece7eb34f02f38b4277fd15f6cbf7622cd18ceb90ab28bc8ca5ac194",
+      "size_bytes": 2595
+    },
+    {
+      "path": "migrations/001_initial.sql",
+      "sha256": "dd42a68a225e31261afd39bc72f42dfad7b02b22457413f45301c31c1c77a8b6",
+      "size_bytes": 12466
+    },
+    {
+      "path": "render.yaml",
+      "sha256": "7dfa71b232aaf2dd1fc2029fdd7f16aa5789df260988e39174c4118abe499d9a",
+      "size_bytes": 2148
+    },
+    {
+      "path": "requirements.txt",
+      "sha256": "7376a2097c82901111c0d899b01920d135afe658780baca6397e089f7f420bae",
+      "size_bytes": 318
+    },
+    {
+      "path": "scripts/check_package.py",
+      "sha256": "8030da71506f364a570d78c1fb86f0996f1fe4b0c61100e821e3ea5428e09fd3",
+      "size_bytes": 1874
+    },
+    {
+      "path": "tests/conftest.py",
+      "sha256": "1fb144da16d15fa88b158ff0d6c81a3ee2bc5db0f4dbd34296431ccfa84170f3",
+      "size_bytes": 1957
+    },
+    {
+      "path": "tests/test_config.py",
+      "sha256": "598d9eb8ddb246ee5b252142a0fd9f74c21008612f80ba8bb28fe92570b525fc",
+      "size_bytes": 1615
+    },
+    {
+      "path": "tests/test_fees.py",
+      "sha256": "2f3244163b15ddd3a2ccdfefba6e58ca6e72547af6e441865c79285fb126b112",
+      "size_bytes": 1578
+    },
+    {
+      "path": "tests/test_integrity_static.py",
+      "sha256": "8afd83d0d6025c22703c69edac4a4e7e72f610e3f5a47d6c63b570faf278a9f9",
+      "size_bytes": 4515
+    },
+    {
+      "path": "tests/test_protocol.py",
+      "sha256": "d3111a500b9ee4bbb7ad6268791ad80433d4fba1e06695858fac7e10a1dc4c55",
+      "size_bytes": 1725
+    },
+    {
+      "path": "tests/test_reporting.py",
+      "sha256": "36431d8167a90fc71544e57e5fc39f252b0f0ce702b38ea89132d9b493903fd0",
+      "size_bytes": 2847
+    },
+    {
+      "path": "tests/test_simulation.py",
+      "sha256": "0a706703eec2cc2567818b42948191f74f2cf51e37f4f1c5c110c96a965e501d",
+      "size_bytes": 5247
+    },
+    {
+      "path": "tests/test_timeutils.py",
+      "sha256": "084f0b9d90f65d0571a3eee6f52bab74984868c79de68c091bc982b901d63a0d",
+      "size_bytes": 883
+    },
+    {
+      "path": "tests/test_trade_conditions.py",
+      "sha256": "771301050bea3f4e2a2917be5e3494befc5dc93e6bdfa1843c9b8df7272f1e89",
+      "size_bytes": 813
+    }
+  ],
+  "package": "Alpaca 13.8% Execution Research Lab",
+  "protocol_hash": "3fc98c787bd375ca7daae92e0c73c53f46c0620f3c82e2d1f767c53939102b2c",
+  "version": "1.0.0"
+}

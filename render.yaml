@@ -1,0 +1,85 @@
+services:
+  - type: web
+    name: alpaca-138-research-web
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    healthCheckPath: /health
+    preDeployCommand: python -m app.migrate
+    maxShutdownDelaySeconds: 60
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STORAGE_BUCKET
+        value: alpaca-138-research
+      - key: APP_USERNAME
+        value: rob
+      - key: APP_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DB_POOL_SIZE
+        value: "4"
+      - key: LOG_LEVEL
+        value: INFO
+
+  - type: worker
+    name: alpaca-138-research-worker
+    runtime: docker
+    region: frankfurt
+    plan: pro
+    dockerCommand: python -m app.worker
+    maxShutdownDelaySeconds: 300
+    disk:
+      name: alpaca-138-worker-data
+      mountPath: /var/data
+      sizeGB: 10
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: STORAGE_BUCKET
+        value: alpaca-138-research
+      - key: ALPACA_API_KEY
+        sync: false
+      - key: ALPACA_API_SECRET
+        sync: false
+      - key: ALPACA_FEED
+        value: sip
+      - key: ALPACA_SIP_CONFIRMED
+        sync: false
+      - key: ALPACA_REQUESTS_PER_MINUTE
+        value: "8000"
+      - key: MASSIVE_API_KEY
+        sync: false
+      - key: MASSIVE_ALL_HISTORY_CONFIRMED
+        sync: false
+      - key: MASSIVE_REQUESTS_PER_MINUTE
+        value: "600"
+      - key: INCLUDE_OTC
+        value: "false"
+      - key: DB_POOL_SIZE
+        value: "4"
+      - key: WORKER_POLL_SECONDS
+        value: "2"
+      - key: STALE_PARTITION_MINUTES
+        value: "20"
+      - key: MAX_PARTITION_ATTEMPTS
+        value: "8"
+      - key: SYMBOL_BATCH_SIZE_DAILY
+        value: "100"
+      - key: SYMBOL_BATCH_SIZE_DECISION
+        value: "150"
+      - key: DECISION_LOOKBACK_MINUTES
+        value: "60"
+      - key: TEMP_DATA_DIR
+        value: /var/data
+      - key: LOG_LEVEL
+        value: INFO

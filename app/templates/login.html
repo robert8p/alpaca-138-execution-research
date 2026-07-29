@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign in · 13.8% Research Lab</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="login-body">
+  <main class="login-shell">
+    <section class="login-card">
+      <div class="mark">13.8</div>
+      <p class="eyebrow">Independent execution research</p>
+      <h1>Alpaca Research Lab</h1>
+      <p class="muted">A sealed, resumable historical test of the frozen 17:00 London continuation signal.</p>
+      {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+      <form method="post" action="/login" class="form-stack">
+        <label>Username<input name="username" autocomplete="username" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+        <button class="button button-primary" type="submit">Enter research lab</button>
+      </form>
+      <p class="fine">Research only · No order-placement capability</p>
+    </section>
+  </main>
+</body>
+</html>

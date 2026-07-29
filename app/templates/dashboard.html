@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>13.8% Research Lab</title>
+  <link rel="stylesheet" href="/static/app.css">
+  {% if runs|selectattr('active')|list %}<meta http-equiv="refresh" content="12">{% endif %}
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><div class="mark mark-small">13.8</div><div><strong>Alpaca Research Lab</strong><span>Execution-aware · full-universe · resumable</span></div></div>
+  <form method="post" action="/logout"><button class="button button-ghost">Sign out</button></form>
+</header>
+<main class="container">
+  {% if notice %}<div class="alert alert-success"><strong>Run created</strong><span class="mono">{{ notice }}</span></div>{% endif %}
+  {% if error %}<div class="alert alert-error"><strong>Action failed</strong><span>{{ error|replace('_',' ') }}</span></div>{% endif %}
+  <section class="hero panel">
+    <div>
+      <p class="eyebrow">Frozen confirmatory research</p>
+      <h1>Does the 17:00 signal survive real execution?</h1>
+      <p class="hero-copy">At 17:00 Europe/London, the app tests stocks strictly above <strong>{{ '%.12f'|format(threshold) }}%</strong> from the previous regular-session close. It uses SIP trades and NBBO quotes, up to five selections per day, and pre-registered optimistic, base and conservative execution.</p>
+      <div class="chips"><span>US$500 positions</span><span>30-second base reaction</span><span>5% stop</span><span>+50%-from-close target</span><span>15:55 ET exit</span></div>
+    </div>
+    <div class="protocol-card">
+      <span class="status-dot good"></span><strong>Protocol locked</strong>
+      <code>{{ protocol_hash[:16] }}…</code>
+      <p>No settings in the UI can retune the hypothesis.</p>
+    </div>
+  </section>
+
+  <section class="actions-grid">
+    <article class="panel action-card">
+      <p class="eyebrow">Deployment proof</p><h2>Smoke test</h2>
+      <p>Ten trading days across a small fixed symbol set. Confirms credentials, migrations, Storage, SIP pages, simulations and exports.</p>
+      <form method="post" action="/runs/create/smoke"><button class="button button-secondary" type="submit">Run smoke test</button></form>
+    </article>
+    <article class="panel action-card primary-card">
+      <p class="eyebrow">Primary replication</p><h2>Run frozen full study</h2>
+      <p>2024–2025 full-universe primary test. The 2026 confirmation period stays inaccessible unless every frozen primary gate passes.</p>
+      <form method="post" action="/runs/create/full"><button class="button button-primary" type="submit">Start full research run</button></form>
+    </article>
+  </section>
+
+  <section class="section-head"><div><p class="eyebrow">Research queue</p><h2>Runs</h2></div><span class="muted">Auto-refreshes while active</span></section>
+  {% if not runs %}
+    <section class="panel empty"><div class="empty-icon">◇</div><h3>No runs yet</h3><p>Begin with the smoke test, then start the frozen full study.</p></section>
+  {% endif %}
+
+  {% for run in runs %}
+  <article class="panel run-card">
+    <div class="run-head">
+      <div>
+        <div class="run-title"><span class="badge badge-{{ run.status|replace('_','-') }}">{{ run.status|replace('_',' ') }}</span><strong>{{ run.run_kind|title }} run</strong></div>
+        <p class="muted mono">{{ run.id }}</p>
+      </div>
+      <div class="run-kpis">
+        <div><span>Phase</span><strong>{{ run.current_phase|title }}</strong></div>
+        <div><span>Overall</span><strong>{{ run.overall_pct }}%</strong></div>
+        <div><span>Gate</span><strong>{% if run.primary_gate_passed is sameas true %}Passed{% elif run.primary_gate_passed is sameas false %}Not passed{% else %}Pending{% endif %}</strong></div>
+      </div>
+    </div>
+    <div class="progress-main"><div style="width:{{ run.overall_pct }}%"></div></div>
+
+    {% if run.stage_rows %}
+    <div class="stage-grid">
+      {% for stage in run.stage_rows %}
+      <div class="stage">
+        <div class="stage-top"><span>{{ stage.label }}</span><strong>{{ stage.completed }}/{{ stage.total }}</strong></div>
+        <div class="progress"><div style="width:{{ stage.pct }}%"></div></div>
+        <small>{% if stage.running %}{{ stage.running }} running · {% endif %}{% if stage.failed %}{{ stage.failed }} failed · {% endif %}{{ stage.queued }} queued</small>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if run.error %}<div class="alert alert-error"><strong>Last error</strong><pre>{{ run.error }}</pre></div>{% endif %}
+
+    <div class="run-actions">
+      {% if run.status in ['failed','cancelled','created'] %}<form method="post" action="/runs/{{ run.id }}/resume"><button class="button button-secondary">Retry and resume</button></form>{% endif %}
+      {% if run.active %}<form method="post" action="/runs/{{ run.id }}/cancel"><button class="button button-danger">Cancel safely</button></form>{% endif %}
+      {% if run.can_unlock %}<form method="post" action="/runs/{{ run.id }}/unlock-confirmation"><button class="button button-primary">Open locked confirmation period</button></form>{% endif %}
+      {% for report in run.reports %}<a class="button button-secondary" href="/runs/{{ run.id }}/reports/{{ report.phase }}/download">Download {{ report.phase }} report</a>{% endfor %}
+    </div>
+
+    {% for report in run.reports %}
+    <div class="verdict {% if report.gate_passed %}verdict-pass{% else %}verdict-fail{% endif %}">
+      <div><span>{{ report.phase|title }} report</span><strong>{{ report.classification|replace('_',' ') }}</strong></div>
+      <div><span>Frozen gate</span><strong>{% if report.gate_passed %}PASS{% else %}FAIL{% endif %}</strong></div>
+    </div>
+    {% endfor %}
+  </article>
+  {% endfor %}
+
+  <section class="panel integrity">
+    <div><p class="eyebrow">Research integrity</p><h2>What the app refuses to do</h2></div>
+    <div class="integrity-grid">
+      <div><strong>No future-high prefilter</strong><p>Every daily cross-section is reconstructed at the decision timestamp before outcomes are known.</p></div>
+      <div><strong>No hidden retuning</strong><p>The signal, scenarios, gates, periods and controls are code-locked and hash-audited.</p></div>
+      <div><strong>No early confirmation access</strong><p>The confirmation period remains sealed unless the primary period passes every gate.</p></div>
+      <div><strong>No trading</strong><p>The application reads historical data and produces research files only.</p></div>
+    </div>
+  </section>
+</main>
+<footer>Alpaca 13.8% Research Lab v{{ version }} · Research only</footer>
+</body>
+</html>
