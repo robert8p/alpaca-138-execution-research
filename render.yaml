@@ -33,7 +33,6 @@ services:
     region: frankfurt
     plan: pro
     dockerCommand: python -m app.worker
-    maxShutdownDelaySeconds: 300
     disk:
       name: alpaca-138-worker-data
       mountPath: /var/data
