@@ -184,7 +184,7 @@ def advance_run(run: dict[str, Any]) -> None:
                 """
                 update research_runs
                    set status='failed',final_classification='invalid_process',
-                       error='Protocol hash does not match app v1.1.0; create a new staged run',updated_at=now()
+                       error='Protocol hash does not match app v1.1.1; create a new staged run',updated_at=now()
                  where id=%s
                 """,
                 (run_id,),

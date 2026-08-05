@@ -1,9 +1,9 @@
-# Build validation — v1.1.0
+# Build validation — v1.1.1
 
 ## Offline validation completed
 
 - Python source compilation: passed.
-- 53 deterministic tests: passed.
+- 55 deterministic tests: passed.
 - Jinja template parsing: passed.
 - Render Blueprint structure: passed.
 - Persistent-disk Blueprint conflict removed: passed.
@@ -40,3 +40,6 @@ The build environment has no access to Alpaca, Massive, Supabase or Render crede
 - measured provider throughput and storage use.
 
 No synthetic result is presented as evidence for or against the strategy.
+
+- Massive active/inactive pagination transition and cursor-resume regression tests: passed.
+- Frozen v1.1.0 protocol hash unchanged by v1.1.1 operational patch: passed.

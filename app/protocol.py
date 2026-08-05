@@ -5,7 +5,7 @@ import json
 from datetime import date
 from typing import Any
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 STRATEGY_ID = "alpaca_17london_return_gt_13_776879"
 
 # Research values are deliberately hard-coded. Operational environment variables

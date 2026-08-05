@@ -1,4 +1,4 @@
-# Alpaca 13.8% Execution Research Lab v1.1.0
+# Alpaca 13.8% Execution Research Lab v1.1.1
 
 A separate, research-only application that mines historical Alpaca SIP and Massive reference data and tests one frozen finding:
 
@@ -6,7 +6,17 @@ A separate, research-only application that mines historical Alpaca SIP and Massi
 
 The app has no trading capability.
 
-## What changed in v1.1.0
+
+## v1.1.1 operational fix
+
+- Corrects the Massive active/inactive ticker pagination transition.
+- Prevents the first inactive-ticker page from being fetched repeatedly.
+- Preserves and resumes the saved Massive page cursor.
+- Resets the displayed Massive reference row counter to actual pages processed after resume.
+- Does not change the frozen v1.1.0 research protocol or its protocol hash.
+- Existing v1.1.0 quarterly runs can resume under v1.1.1; no new run is required.
+
+## What changed in v1.1.1
 
 The 2024–2025 primary period is processed in eight pre-registered three-month tranches:
 

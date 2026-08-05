@@ -108,13 +108,18 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
     active_values = [True, False]
     active_index = int(cursor.get("active_index") or 0)
     next_url = cursor.get("next_url")
-    matched = int(partition.get("row_count") or 0)
+    processed = int(cursor.get("processed") or 0)
+
     for index in range(active_index, len(active_values)):
         active = active_values[index]
+        # Resume the persisted page only for the active group that was in flight.
+        # Subsequent groups must start from their own first page, after which the
+        # returned next_url is followed unconditionally.
+        page_url = next_url if index == active_index else None
         while True:
             if is_cancelled(str(partition["run_id"])):
                 raise RuntimeError("Run cancelled")
-            payload = client.ticker_page(active, next_url if index == active_index else None)
+            payload = client.ticker_page(active, page_url)
             rows = payload.get("results") or []
             with connection() as conn, conn.cursor() as cur:
                 for row in rows:
@@ -136,23 +141,29 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
                             Jsonb({"massive":row}),partition["run_id"],symbol,
                         ),
                     )
-                    matched += max(cur.rowcount,0)
                 conn.commit()
-            next_url = payload.get("next_url")
+
+            processed += len(rows)
+            page_url = payload.get("next_url")
             heartbeat(
                 str(partition["id"]),
-                cursor={"active_index": index, "next_url": next_url},
-                row_count=matched,
+                cursor={"active_index": index, "next_url": page_url, "processed": processed},
+                row_count=processed,
             )
-            if not next_url:
+            if not page_url:
                 next_url = None
                 heartbeat(
                     str(partition["id"]),
-                    cursor={"active_index": index + 1, "next_url": None},
-                    row_count=matched,
+                    cursor={"active_index": index + 1, "next_url": None, "processed": processed},
+                    row_count=processed,
                 )
                 break
-    complete(str(partition["id"]), row_count=matched)
+
+    complete(
+        str(partition["id"]),
+        row_count=processed,
+        cursor={"active_index": len(active_values), "next_url": None, "processed": processed, "finished": True},
+    )
 
 
 def process_calendar(partition: dict[str, Any]) -> None:

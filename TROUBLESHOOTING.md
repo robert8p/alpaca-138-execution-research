@@ -1,4 +1,4 @@
-# Troubleshooting — v1.1.0
+# Troubleshooting — v1.1.1
 
 ## The percentage has not moved
 
@@ -45,3 +45,7 @@ Reduce the relevant request limit, redeploy the worker and resume the same run. 
 ## Missing table research_tranches
 
 Deploy the web service first and verify migration `002_quarterly_tranches.sql` completed before starting the worker.
+
+## UI remains at 86% while Massive reference shows millions of rows
+
+This is the v1.1.0 active/inactive ticker pagination-loop defect. A fresh heartbeat does not mean useful progress: the same first inactive-ticker page is being processed repeatedly. Upgrade to v1.1.1, preserve the partition cursor, requeue the affected partition after stopping the old worker, and resume.

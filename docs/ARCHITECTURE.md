@@ -1,4 +1,4 @@
-# Architecture — v1.1.0
+# Architecture — v1.1.1
 
 ## Isolation
 

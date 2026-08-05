@@ -1,4 +1,17 @@
-# Deployment — v1.1.0 quarterly build
+
+## Resume an affected v1.1.0 run
+
+A run showing millions of rows in `massive_reference / all-tickers` is affected by the pagination-loop defect fixed in v1.1.1.
+
+1. Suspend the worker and wait until the old instance has stopped.
+2. Deploy v1.1.1. No database migration is required.
+3. In Supabase, requeue only the running `massive_reference` partition while preserving its cursor.
+4. Resume/deploy the worker. The partition continues from its saved Massive page.
+5. Do not cancel or recreate the research run. Completed daily-bar partitions remain valid.
+
+The frozen protocol hash is unchanged from v1.1.0.
+
+# Deployment — v1.1.1 quarterly build
 
 ## New deployment
 
@@ -11,7 +24,7 @@
    - `alpaca-138-research-worker`
 6. Enter the new Supabase values and provider credentials.
 7. Deploy the web service first so migrations 001 and 002 are applied.
-8. Confirm `/health` reports version `1.1.0` and database `ok`.
+8. Confirm `/health` reports version `1.1.1` and database `ok`.
 9. Deploy the worker.
 10. Run a new smoke test.
 11. Start the full quarterly study only after the smoke report completes.
@@ -19,7 +32,7 @@
 ## Upgrade from v1.0.0
 
 1. Safely cancel an active v1.0 run.
-2. Replace the GitHub repository contents with v1.1.0 while preserving `.git`.
+2. Replace the GitHub repository contents with v1.1.1 while preserving `.git`.
 3. Commit and push.
 4. Deploy `alpaca-138-research-web` first.
 5. Confirm migration `002_quarterly_tranches.sql` appears in `/health`.
@@ -95,7 +108,7 @@ Expected structure:
 ```json
 {
   "status": "ok",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "role": "research_only_no_trading",
   "database": "ok",
   "latest_migration": {
