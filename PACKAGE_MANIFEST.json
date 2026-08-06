@@ -1,11 +1,11 @@
 {
   "package": "Alpaca 13.8% Execution Research Lab",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "protocol_version": "1.1.0",
   "protocol_hash": "ddce449bdd0c6dc6f720e67ff6964bb1dbbe37d6b7429c5455eded1afd630ca2",
-  "operational_change": "exact-symbol Massive reference batches with automatic legacy retirement",
-  "built_at_utc": "2026-08-06T00:57:00.124972+00:00",
-  "file_count_excluding_manifest": 52,
+  "operational_change": "bind Massive stage LIKE wildcard through psycopg parameters",
+  "built_at_utc": "2026-08-06T01:08:16.203278+00:00",
+  "file_count_excluding_manifest": 53,
   "files": [
     {
       "path": ".dockerignore",
@@ -34,13 +34,13 @@
     },
     {
       "path": "BUILD_VALIDATION.md",
-      "size_bytes": 1062,
-      "sha256": "ea88a25f500b1d1888a152133b56e056e85f240718014ced520902643a83e256"
+      "size_bytes": 469,
+      "sha256": "9852776a3845ffce223460590003a5db8cdba11204ce00338a24e399218518d9"
     },
     {
       "path": "DEPLOYMENT.md",
-      "size_bytes": 3213,
-      "sha256": "5b3e32a5aa087120e3d262799884d835662b8f65a6baf374ef3a5ece9764db83"
+      "size_bytes": 728,
+      "sha256": "7dcb3b7baade4343e5d13211a1a944cd16ec380e30bd9e6364416cca3d98b6da"
     },
     {
       "path": "Dockerfile",
@@ -54,18 +54,18 @@
     },
     {
       "path": "README.md",
-      "size_bytes": 2350,
-      "sha256": "1057b30042784270fb5e6759e7a2bb0e1014ea8deeff70523756fb96313e4fe7"
+      "size_bytes": 907,
+      "sha256": "ec7d1181d4ed4a56c880ce660668d97001bb333ae5aecc2a826b71d3f18d11cc"
     },
     {
       "path": "TROUBLESHOOTING.md",
-      "size_bytes": 1483,
-      "sha256": "c22c0543a7d98f779d427fd4ce016f9aefee52e0fe43f6f44eaa33b7a56f0249"
+      "size_bytes": 726,
+      "sha256": "039beae869f3eb10c331a2944237d9fa69ba8fd7de46c0cfa5f9ed25bb21ddc0"
     },
     {
       "path": "app/__init__.py",
       "size_bytes": 22,
-      "sha256": "e528068d386c1eefc84e7f15f3706f0b38aa0b0c5d5f14d0a9c0b72903073df3"
+      "sha256": "bbd13126aa0cbf77d073c5a62d3c38236167428eaee3146b05ce832f2e86d481"
     },
     {
       "path": "app/config.py",
@@ -104,18 +104,18 @@
     },
     {
       "path": "app/orchestrator.py",
-      "size_bytes": 19762,
-      "sha256": "ff3b0cb88c313da4372ef16cf155b0f077623442779e1bb5c090f5c536d71d1e"
+      "size_bytes": 19928,
+      "sha256": "6b0ef38710e124a19c808c0bcb54aef55a21503e355cced6c5c0f853720066a8"
     },
     {
       "path": "app/processors.py",
       "size_bytes": 45092,
-      "sha256": "2d82707401922715ff51c1cb80f6cb9ffe0c6c20f9a643c232c8af1bd3e07afe"
+      "sha256": "4fdb12e4c34aef51467e62312f87d6a17fad30af75bbef7417f182f5555ffa70"
     },
     {
       "path": "app/protocol.py",
       "size_bytes": 7589,
-      "sha256": "a838986ee4501db94272aa405246138b3ea6f7861fefdf6ae6ea35297d3b323d"
+      "sha256": "85a37ad0a181f0ec5a94c247faaec5e5b38a41ae2d60b54794ab98b2fe02a267"
     },
     {
       "path": "app/providers.py",
@@ -180,12 +180,12 @@
     {
       "path": "app/worker.py",
       "size_bytes": 2315,
-      "sha256": "e00fe9a627b3cb456e31e4f0da2747e7105442189636044666597a71073a1e7a"
+      "sha256": "0de8be6bbe98865763ede2c931da116a881477dd9b8abfc93caa40564bdadac2"
     },
     {
       "path": "docs/ARCHITECTURE.md",
       "size_bytes": 1288,
-      "sha256": "1ecd24ab1e05883272a412abbef7a6cd385089c44c1c2e4c5c63d88df5ed77f6"
+      "sha256": "f2464139fa4c0f7af7e0e9c1336d08f0ffeae54ddd47c5132d4b6c5e440be09f"
     },
     {
       "path": "migrations/001_initial.sql",
@@ -215,7 +215,7 @@
     {
       "path": "scripts/check_package.py",
       "size_bytes": 2015,
-      "sha256": "625a6a2abb612dd55195e2fdb3c20a6ae826d8da9a9acc3d14387523964bb566"
+      "sha256": "e4f1be10f323a181d95060a3b4bfb84fc09029ca85624fa891346d1d316d9ebe"
     },
     {
       "path": "tests/conftest.py",
@@ -241,6 +241,11 @@
       "path": "tests/test_massive_reference.py",
       "size_bytes": 4874,
       "sha256": "b6a4c65c32805b1293e0b65d61bf0e652a82933305b11265f6549069b37979db"
+    },
+    {
+      "path": "tests/test_orchestrator_sql.py",
+      "size_bytes": 721,
+      "sha256": "5456654f7cefd869b30c58a16e77a1998a49a04c7d778ff42a8a1af1bbf168ea"
     },
     {
       "path": "tests/test_protocol.py",

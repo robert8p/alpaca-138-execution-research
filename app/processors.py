@@ -182,7 +182,7 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
                     ticker_type in COMMON_STOCK_TYPES,
                     Jsonb({
                         "massive": row,
-                        "massive_lookup": {"status": lookup_status, "app_version": "1.1.2"},
+                        "massive_lookup": {"status": lookup_status, "app_version": "1.1.3"},
                     }),
                     partition["run_id"],
                     symbol,
@@ -197,7 +197,7 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
                         "massive_lookup": {
                             "status": "not_found",
                             "symbol": symbol,
-                            "app_version": "1.1.2",
+                            "app_version": "1.1.3",
                         }
                     }),
                     partition["run_id"],

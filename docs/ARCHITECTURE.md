@@ -1,4 +1,4 @@
-# Architecture — v1.1.2
+# Architecture — v1.1.3
 
 ## Research boundary
 

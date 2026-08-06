@@ -141,8 +141,11 @@ def _stage_counts(run_id: str, phase: str, stage: str, tranche_key: str | None =
     scope_sql = " and partition_key like %s" if tranche_key else ""
     params: tuple[Any, ...] = (run_id, phase, stage, partition_prefix(tranche_key) + "%") if tranche_key else (run_id, phase, stage)
     if stage == "massive_reference" and tranche_key is None:
-        # Ignore the retired v1.1.0/v1.1.1 all-tickers partition.
-        scope_sql += " and partition_key like 'symbol-batch-%'"
+        # Ignore the retired v1.1.0/v1.1.1 all-tickers partition. Keep the
+        # wildcard in a bound parameter: psycopg treats any literal % in a
+        # parameterised query as placeholder syntax.
+        scope_sql += " and partition_key like %s"
+        params += ("symbol-batch-%",)
     row = fetch_one(
         f"""
         select count(*)::int total,
@@ -187,7 +190,7 @@ def advance_run(run: dict[str, Any]) -> None:
                 """
                 update research_runs
                    set status='failed',final_classification='invalid_process',
-                       error='Protocol hash does not match app v1.1.2; create a new staged run',updated_at=now()
+                       error='Protocol hash does not match the current app; create a new staged run',updated_at=now()
                  where id=%s
                 """,
                 (run_id,),

@@ -32,7 +32,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
     open_pool()
-    logger.info("Research worker started", extra={"version": "1.1.2"})
+    logger.info("Research worker started", extra={"version": "1.1.3"})
     try:
         while _running:
             try:
