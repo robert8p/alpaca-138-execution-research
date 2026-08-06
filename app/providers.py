@@ -4,8 +4,16 @@ from datetime import date, datetime
 from typing import Any, Iterator
 
 from app.config import get_settings
-from app.http import request_json
+from app.http import ApiError, request_json
 from app.rate_limit import RateLimiter
+
+
+class InvalidTickerParameter(RuntimeError):
+    """Massive rejected the supplied ticker syntax; this symbol should be audited and skipped."""
+
+    def __init__(self, symbol: str) -> None:
+        super().__init__(f"Massive rejected ticker parameter: {symbol}")
+        self.symbol = symbol
 
 
 class AlpacaClient:
@@ -136,18 +144,29 @@ class MassiveClient:
         return request_json("GET", url, params=merged, timeout=self.settings.http_timeout_seconds)
 
     def ticker_reference(self, symbol: str, *, active: bool) -> dict[str, Any] | None:
-        """Return an exact active/inactive ticker match without scanning the catalogue."""
-        payload = self._get(
-            f"{self.settings.massive_base_url.rstrip('/')}/v3/reference/tickers",
-            {
-                "ticker": symbol,
-                "market": "stocks",
-                "active": str(active).lower(),
-                "limit": 10,
-                "sort": "ticker",
-                "order": "asc",
-            },
-        )
+        """Return an exact active/inactive ticker match without scanning the catalogue.
+
+        Massive returns HTTP 400 for some valid Alpaca instrument symbols whose syntax is
+        unsupported by this endpoint (for example certain preferred-share and rights
+        tickers). These are data-coverage exclusions, not transient partition failures.
+        """
+        try:
+            payload = self._get(
+                f"{self.settings.massive_base_url.rstrip('/')}/v3/reference/tickers",
+                {
+                    "ticker": symbol,
+                    "market": "stocks",
+                    "active": str(active).lower(),
+                    "limit": 10,
+                    "sort": "ticker",
+                    "order": "asc",
+                },
+            )
+        except ApiError as exc:
+            message = str(exc)
+            if "HTTP 400" in message and "Invalid ticker parameter" in message:
+                raise InvalidTickerParameter(symbol) from exc
+            raise
         for row in payload.get("results") or []:
             if str(row.get("ticker") or "").upper() == symbol.upper():
                 return row

@@ -147,3 +147,12 @@ def test_massive_symbol_updates_and_cursor_checkpoint_share_one_transaction():
     assert "update instruments" in block
     assert "update work_partitions" in block
     assert block.index("update instruments") < block.index("update work_partitions") < block.index("conn.commit()")
+
+
+def test_massive_invalid_ticker_errors_are_audited_not_retried_forever():
+    providers = (ROOT / "app" / "providers.py").read_text()
+    processors = (ROOT / "app" / "processors.py").read_text()
+    assert "Invalid ticker parameter" in providers
+    assert "raise InvalidTickerParameter(symbol)" in providers
+    assert 'lookup_status = "invalid_ticker_parameter"' in processors
+    assert '"research_impact": "excluded_from_massive_reference_sensitivity_only"' in processors

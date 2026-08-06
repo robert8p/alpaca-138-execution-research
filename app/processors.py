@@ -18,7 +18,7 @@ from app.config import get_settings
 from app.db import connection, fetch_all, fetch_one
 from app.orchestrator import _update_progress
 from app.protocol import PROTOCOL
-from app.providers import AlpacaClient, MassiveClient
+from app.providers import AlpacaClient, InvalidTickerParameter, MassiveClient
 from app.queue import complete, enqueue, heartbeat, is_cancelled
 from app.simulation import simulate_target
 from app.storage import StorageClient
@@ -120,6 +120,7 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
     examined = int(cursor.get("examined") or next_index)
     matched = int(cursor.get("matched") or 0)
     not_found = int(cursor.get("not_found") or 0)
+    invalid = int(cursor.get("invalid") or 0)
     checkpoint_size = 10
     pending: list[tuple[Any, ...]] = []
 
@@ -130,6 +131,7 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
             "examined": examined,
             "matched": matched,
             "not_found": not_found,
+            "invalid": invalid,
         }
         with connection() as conn, conn.cursor() as cur:
             if pending:
@@ -162,14 +164,35 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
         if is_cancelled(str(partition["run_id"])):
             raise RuntimeError("Run cancelled")
         symbol = symbols[index]
-        row = client.ticker_reference(symbol, active=True)
-        lookup_status = "active"
-        if row is None:
-            row = client.ticker_reference(symbol, active=False)
-            lookup_status = "inactive" if row is not None else "not_found"
+        try:
+            row = client.ticker_reference(symbol, active=True)
+            lookup_status = "active"
+            if row is None:
+                row = client.ticker_reference(symbol, active=False)
+                lookup_status = "inactive" if row is not None else "not_found"
+        except InvalidTickerParameter:
+            row = None
+            lookup_status = "invalid_ticker_parameter"
 
         examined += 1
-        if row is not None:
+        if lookup_status == "invalid_ticker_parameter":
+            invalid += 1
+            pending.append(
+                (
+                    None, None, None, None, None, None,
+                    Jsonb({
+                        "massive_lookup": {
+                            "status": lookup_status,
+                            "symbol": symbol,
+                            "app_version": "1.1.4",
+                            "research_impact": "excluded_from_massive_reference_sensitivity_only",
+                        }
+                    }),
+                    partition["run_id"],
+                    symbol,
+                )
+            )
+        elif row is not None:
             matched += 1
             ticker_type = row.get("type")
             pending.append(
@@ -182,7 +205,7 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
                     ticker_type in COMMON_STOCK_TYPES,
                     Jsonb({
                         "massive": row,
-                        "massive_lookup": {"status": lookup_status, "app_version": "1.1.3"},
+                        "massive_lookup": {"status": lookup_status, "app_version": "1.1.4"},
                     }),
                     partition["run_id"],
                     symbol,
@@ -197,7 +220,7 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
                         "massive_lookup": {
                             "status": "not_found",
                             "symbol": symbol,
-                            "app_version": "1.1.3",
+                            "app_version": "1.1.4",
                         }
                     }),
                     partition["run_id"],
@@ -217,6 +240,7 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
             "examined": examined,
             "matched": matched,
             "not_found": not_found,
+            "invalid": invalid,
             "finished": True,
         },
     )

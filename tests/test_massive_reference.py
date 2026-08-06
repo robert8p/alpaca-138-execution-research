@@ -99,6 +99,7 @@ def test_massive_reference_looks_up_only_run_symbols_with_inactive_fallback(monk
         "examined": 3,
         "matched": 2,
         "not_found": 1,
+        "invalid": 0,
         "finished": True,
     }
     assert sum(len(batch) for batch in _Cursor.batches) == 3
@@ -164,3 +165,89 @@ def test_massive_client_exact_lookup_sets_symbol_and_active_filters(monkeypatch)
     assert calls[0][1]["ticker"] == "AAA"
     assert calls[0][1]["active"] == "false"
     assert calls[0][1]["market"] == "stocks"
+
+
+def test_massive_invalid_ticker_is_audited_and_batch_continues(monkeypatch):
+    from app.providers import InvalidTickerParameter
+
+    class _MassiveWithInvalid:
+        calls: list[tuple[str, bool]] = []
+
+        def ticker_reference(self, symbol: str, *, active: bool):
+            self.calls.append((symbol, active))
+            if symbol == "OPP-C":
+                raise InvalidTickerParameter(symbol)
+            return {
+                "ticker": symbol,
+                "type": "CS",
+                "active": True,
+                "primary_exchange": "XNYS",
+            }
+
+    _Cursor.batches = []
+    completed = []
+    monkeypatch.setattr(processors, "MassiveClient", _MassiveWithInvalid)
+    monkeypatch.setattr(processors, "connection", _connection)
+    monkeypatch.setattr(processors, "is_cancelled", lambda _run_id: False)
+    monkeypatch.setattr(processors, "complete", lambda *args, **kwargs: completed.append((args, kwargs)))
+
+    processors.process_massive_reference(
+        {
+            "id": "partition",
+            "run_id": "run",
+            "params": {"symbols": ["OPP", "OPP-C", "OPPE"]},
+            "cursor": {},
+        }
+    )
+
+    assert _MassiveWithInvalid.calls == [("OPP", True), ("OPP-C", True), ("OPPE", True)]
+    cursor = completed[0][1]["cursor"]
+    assert cursor["next_index"] == 3
+    assert cursor["examined"] == 3
+    assert cursor["matched"] == 2
+    assert cursor["invalid"] == 1
+    assert cursor["not_found"] == 0
+    assert sum(len(batch) for batch in _Cursor.batches) == 3
+    invalid_metadata = _Cursor.batches[0][1][6].value
+    assert invalid_metadata["massive_lookup"]["status"] == "invalid_ticker_parameter"
+    assert invalid_metadata["massive_lookup"]["symbol"] == "OPP-C"
+
+
+def test_massive_client_converts_only_invalid_ticker_400(monkeypatch):
+    from app.http import ApiError
+    from app.providers import InvalidTickerParameter, MassiveClient
+
+    client = MassiveClient()
+    monkeypatch.setattr(
+        client,
+        "_get",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            ApiError('HTTP 400 for https://api.massive.com/v3/reference/tickers: {"error":"Invalid ticker parameter"}')
+        ),
+    )
+
+    try:
+        client.ticker_reference("OPP-C", active=True)
+    except InvalidTickerParameter as exc:
+        assert exc.symbol == "OPP-C"
+    else:
+        raise AssertionError("Expected InvalidTickerParameter")
+
+
+def test_massive_client_does_not_hide_other_400_errors(monkeypatch):
+    from app.http import ApiError
+    from app.providers import MassiveClient
+
+    client = MassiveClient()
+    monkeypatch.setattr(
+        client,
+        "_get",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ApiError("HTTP 400: another problem")),
+    )
+
+    try:
+        client.ticker_reference("AAA", active=True)
+    except ApiError as exc:
+        assert "another problem" in str(exc)
+    else:
+        raise AssertionError("Expected original ApiError")
