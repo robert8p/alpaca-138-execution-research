@@ -11,6 +11,7 @@ required = [
     "docs/ARCHITECTURE.md", "app/main.py", "app/worker.py", "app/protocol.py",
     "app/reporting.py", "app/interim_reporting.py", "app/tranches.py",
     "migrations/001_initial.sql", "migrations/002_quarterly_tranches.sql",
+    "migrations/003_massive_symbol_batches.sql",
 ]
 missing = [item for item in required if not (root / item).exists()]
 if missing:
@@ -19,7 +20,7 @@ if missing:
 manifest_path = root / "PACKAGE_MANIFEST.json"
 if manifest_path.exists():
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("version") != "1.1.1":
+    if manifest.get("version") != "1.1.2":
         raise SystemExit("Unexpected package version")
     listed = {item["path"]: item for item in manifest["files"]}
     actual = {

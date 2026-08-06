@@ -135,6 +135,24 @@ class MassiveClient:
         merged.setdefault("apiKey", self.settings.massive_api_key.get_secret_value())
         return request_json("GET", url, params=merged, timeout=self.settings.http_timeout_seconds)
 
+    def ticker_reference(self, symbol: str, *, active: bool) -> dict[str, Any] | None:
+        """Return an exact active/inactive ticker match without scanning the catalogue."""
+        payload = self._get(
+            f"{self.settings.massive_base_url.rstrip('/')}/v3/reference/tickers",
+            {
+                "ticker": symbol,
+                "market": "stocks",
+                "active": str(active).lower(),
+                "limit": 10,
+                "sort": "ticker",
+                "order": "asc",
+            },
+        )
+        for row in payload.get("results") or []:
+            if str(row.get("ticker") or "").upper() == symbol.upper():
+                return row
+        return None
+
     def ticker_page(self, active: bool, next_url: str | None = None) -> dict[str, Any]:
         url = next_url or f"{self.settings.massive_base_url.rstrip('/')}/v3/reference/tickers"
         params = None if next_url else {

@@ -72,6 +72,8 @@ services:
         value: "20"
       - key: MAX_PARTITION_ATTEMPTS
         value: "8"
+      - key: SYMBOL_BATCH_SIZE_MASSIVE
+        value: "100"
       - key: SYMBOL_BATCH_SIZE_DAILY
         value: "100"
       - key: SYMBOL_BATCH_SIZE_DECISION

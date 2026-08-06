@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     worker_poll_seconds: float = Field(default=2.0, ge=0.5, le=60, alias="WORKER_POLL_SECONDS")
     stale_partition_minutes: int = Field(default=20, ge=5, le=240, alias="STALE_PARTITION_MINUTES")
     max_partition_attempts: int = Field(default=8, ge=1, le=25, alias="MAX_PARTITION_ATTEMPTS")
+    symbol_batch_size_massive: int = Field(default=100, ge=10, le=500, alias="SYMBOL_BATCH_SIZE_MASSIVE")
     symbol_batch_size_daily: int = Field(default=100, ge=10, le=500, alias="SYMBOL_BATCH_SIZE_DAILY")
     symbol_batch_size_decision: int = Field(default=150, ge=10, le=300, alias="SYMBOL_BATCH_SIZE_DECISION")
     decision_lookback_minutes: int = Field(default=60, ge=5, le=180, alias="DECISION_LOOKBACK_MINUTES")

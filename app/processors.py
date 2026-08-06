@@ -103,68 +103,123 @@ def process_catalogue(partition: dict[str, Any]) -> None:
 
 
 def process_massive_reference(partition: dict[str, Any]) -> None:
+    """Enrich only symbols belonging to this run, checkpointed by symbol index."""
+    symbols = [str(item).upper() for item in (partition.get("params") or {}).get("symbols", []) if item]
+    if not symbols:
+        # Retire the v1.1.0/v1.1.1 all-catalogue partition safely.
+        complete(
+            str(partition["id"]),
+            row_count=0,
+            cursor={"finished": True, "retired_legacy_all_tickers": True},
+        )
+        return
+
     client = MassiveClient()
     cursor = partition.get("cursor") or {}
-    active_values = [True, False]
-    active_index = int(cursor.get("active_index") or 0)
-    next_url = cursor.get("next_url")
-    processed = int(cursor.get("processed") or 0)
+    next_index = max(0, min(int(cursor.get("next_index") or 0), len(symbols)))
+    examined = int(cursor.get("examined") or next_index)
+    matched = int(cursor.get("matched") or 0)
+    not_found = int(cursor.get("not_found") or 0)
+    checkpoint_size = 10
+    pending: list[tuple[Any, ...]] = []
 
-    for index in range(active_index, len(active_values)):
-        active = active_values[index]
-        # Resume the persisted page only for the active group that was in flight.
-        # Subsequent groups must start from their own first page, after which the
-        # returned next_url is followed unconditionally.
-        page_url = next_url if index == active_index else None
-        while True:
-            if is_cancelled(str(partition["run_id"])):
-                raise RuntimeError("Run cancelled")
-            payload = client.ticker_page(active, page_url)
-            rows = payload.get("results") or []
-            with connection() as conn, conn.cursor() as cur:
-                for row in rows:
-                    symbol = str(row.get("ticker") or "").upper()
-                    if not symbol:
-                        continue
-                    ticker_type = row.get("type")
-                    cur.execute(
-                        """
-                        update instruments
-                           set massive_type=%s,massive_active=%s,massive_primary_exchange=%s,
-                               massive_cik=%s,massive_composite_figi=%s,
-                               common_stock_sensitivity=%s,metadata=metadata || %s,updated_at=now()
-                         where run_id=%s and symbol=%s
-                        """,
-                        (
-                            ticker_type,bool(row.get("active",active)),row.get("primary_exchange"),
-                            row.get("cik"),row.get("composite_figi"),ticker_type in COMMON_STOCK_TYPES,
-                            Jsonb({"massive":row}),partition["run_id"],symbol,
-                        ),
-                    )
-                conn.commit()
-
-            processed += len(rows)
-            page_url = payload.get("next_url")
-            heartbeat(
-                str(partition["id"]),
-                cursor={"active_index": index, "next_url": page_url, "processed": processed},
-                row_count=processed,
-            )
-            if not page_url:
-                next_url = None
-                heartbeat(
-                    str(partition["id"]),
-                    cursor={"active_index": index + 1, "next_url": None, "processed": processed},
-                    row_count=processed,
+    def flush(checkpoint_index: int) -> None:
+        nonlocal pending
+        checkpoint_cursor = {
+            "next_index": checkpoint_index,
+            "examined": examined,
+            "matched": matched,
+            "not_found": not_found,
+        }
+        with connection() as conn, conn.cursor() as cur:
+            if pending:
+                cur.executemany(
+                    """
+                    update instruments
+                       set massive_type=coalesce(%s,massive_type),
+                           massive_active=coalesce(%s,massive_active),
+                           massive_primary_exchange=coalesce(%s,massive_primary_exchange),
+                           massive_cik=coalesce(%s,massive_cik),
+                           massive_composite_figi=coalesce(%s,massive_composite_figi),
+                           common_stock_sensitivity=coalesce(%s,common_stock_sensitivity),
+                           metadata=metadata || %s,updated_at=now()
+                     where run_id=%s and symbol=%s
+                    """,
+                    pending,
                 )
-                break
+            cur.execute(
+                """
+                update work_partitions
+                   set cursor=%s,row_count=%s,heartbeat_at=now(),updated_at=now()
+                 where id=%s
+                """,
+                (Jsonb(checkpoint_cursor), matched, partition["id"]),
+            )
+            conn.commit()
+        pending = []
+
+    for index in range(next_index, len(symbols)):
+        if is_cancelled(str(partition["run_id"])):
+            raise RuntimeError("Run cancelled")
+        symbol = symbols[index]
+        row = client.ticker_reference(symbol, active=True)
+        lookup_status = "active"
+        if row is None:
+            row = client.ticker_reference(symbol, active=False)
+            lookup_status = "inactive" if row is not None else "not_found"
+
+        examined += 1
+        if row is not None:
+            matched += 1
+            ticker_type = row.get("type")
+            pending.append(
+                (
+                    ticker_type,
+                    bool(row.get("active", lookup_status == "active")),
+                    row.get("primary_exchange"),
+                    row.get("cik"),
+                    row.get("composite_figi"),
+                    ticker_type in COMMON_STOCK_TYPES,
+                    Jsonb({
+                        "massive": row,
+                        "massive_lookup": {"status": lookup_status, "app_version": "1.1.2"},
+                    }),
+                    partition["run_id"],
+                    symbol,
+                )
+            )
+        else:
+            not_found += 1
+            pending.append(
+                (
+                    None, None, None, None, None, None,
+                    Jsonb({
+                        "massive_lookup": {
+                            "status": "not_found",
+                            "symbol": symbol,
+                            "app_version": "1.1.2",
+                        }
+                    }),
+                    partition["run_id"],
+                    symbol,
+                )
+            )
+
+        checkpoint_index = index + 1
+        if len(pending) >= checkpoint_size or checkpoint_index == len(symbols):
+            flush(checkpoint_index)
 
     complete(
         str(partition["id"]),
-        row_count=processed,
-        cursor={"active_index": len(active_values), "next_url": None, "processed": processed, "finished": True},
+        row_count=matched,
+        cursor={
+            "next_index": len(symbols),
+            "examined": examined,
+            "matched": matched,
+            "not_found": not_found,
+            "finished": True,
+        },
     )
-
 
 def process_calendar(partition: dict[str, Any]) -> None:
     params = partition["params"]

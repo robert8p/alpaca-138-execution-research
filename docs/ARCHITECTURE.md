@@ -1,63 +1,26 @@
-# Architecture — v1.1.1
+# Architecture — v1.1.2
 
-## Isolation
+## Research boundary
 
-The application uses its own GitHub repository, Supabase project and Render web/worker services. It has no runtime dependency on the Market Data Miner.
+The app is research-only. The threshold, execution scenarios, quarterly sequence, futility gate and confirmation lock are hard-coded in `app/protocol.py` and protected by the protocol hash.
 
-## Control plane
+## Durable orchestration
 
-The web service:
+Every unit of work is an idempotent database partition. Workers claim partitions with `FOR UPDATE SKIP LOCKED`, checkpoint cursors and row counts, and automatically reclaim stale work.
 
-- applies migrations;
-- authenticates the dashboard;
-- creates smoke and full runs;
-- exposes progress, heartbeat and tranche state;
-- signs private Storage report downloads;
-- controls cancel, resume and confirmation unlock.
+## Massive reference enrichment
 
-## Worker
+After the Alpaca catalogue is stored, the orchestrator selects only symbols belonging to the run and creates `symbol-batch-*` partitions. Each partition contains up to `SYMBOL_BATCH_SIZE_MASSIVE` symbols.
 
-One resumable worker performs:
+For each symbol:
 
-1. shared Alpaca catalogue;
-2. shared Massive reference reconstruction;
-3. tranche calendar and splits;
-4. tranche daily bars;
-5. decision-time cross-sections;
-6. exact SIP signal verification;
-7. daily signal/control selection;
-8. raw SIP trades and quotes;
-9. execution simulations;
-10. overnight diagnostics;
-11. standalone and cumulative tranche reports;
-12. final phase report after all required tranches.
+1. Query Massive's All Tickers endpoint with the exact ticker and `active=true`.
+2. If no exact result exists, query the same ticker with `active=false`.
+3. Update only that run's matching instrument.
+4. Checkpoint every ten symbols.
 
-## Quarterly state machine
+The worker never crawls Massive's global ticker catalogue. Migration 003 retires legacy `all-tickers` partitions from v1.1.0/v1.1.1.
 
-```text
-2024 Q1 → interim reports → futility check
-    ↓ continue only
-2024 Q2 → interim reports → futility check
-    ↓
-...
-    ↓
-2025 Q4 → final primary report → frozen gate
-    ↓ only if PASS
-2026 locked confirmation → final confirmation report
-```
+## Existing data preservation
 
-`research_tranches` stores each locked period, status, report paths, metrics and futility assessment. Work partition keys are prefixed by tranche, preventing collisions and making each quarter independently resumable.
-
-## Early stopping
-
-Only the cumulative base and conservative signal cohorts feed the futility rule. Controls and standalone-quarter results cannot stop or validate the study. Early stopping is automatic only when every hard-coded negative condition passes.
-
-## Storage
-
-- PostgreSQL: catalogues, sessions, bars, decision snapshots, triggers, targets, partition checkpoints, trade results, tranche state and report indexes.
-- Supabase Storage: compressed raw SIP pages and signed report ZIPs.
-- Render disk: temporary resumable processing files under `/var/data`.
-
-## Integrity
-
-The protocol hash includes the hypothesis, universes, execution scenarios, primary and confirmation dates, quarterly boundaries, complete gate and futility rule. Confirmation is invalidated if the hash changes after unlock.
+The operational migration does not alter the frozen protocol or delete research facts. Completed Alpaca Daily Bars, calendars, corporate actions and catalogue rows remain intact.

@@ -120,3 +120,30 @@ def test_worker_dashboard_surfaces_heartbeat_and_stale_state():
     assert "heartbeat_age_seconds" in main
     assert "stale_partition_minutes" in main
     assert "Possible stale partition" in template
+
+
+def test_massive_reference_uses_exact_symbol_batches_not_catalogue_crawl():
+    orchestrator = (ROOT / "app" / "orchestrator.py").read_text()
+    processors = (ROOT / "app" / "processors.py").read_text()
+    provider = (ROOT / "app" / "providers.py").read_text()
+    migration = (ROOT / "migrations" / "003_massive_symbol_batches.sql").read_text().lower()
+    assert 'f"symbol-batch-{index:05d}"' in orchestrator
+    assert '"all-tickers"' not in orchestrator
+    assert "ticker_reference(symbol, active=True)" in processors
+    assert "ticker_reference(symbol, active=False)" in processors
+    assert '"ticker": symbol' in provider
+    assert "retired_legacy_all_tickers" in migration
+
+
+def test_massive_batch_size_is_explicit_in_blueprint():
+    blueprint = yaml.safe_load((ROOT / "render.yaml").read_text())
+    worker_env = {item["key"]: item.get("value") for item in blueprint["services"][1]["envVars"]}
+    assert worker_env["SYMBOL_BATCH_SIZE_MASSIVE"] == "100"
+
+
+def test_massive_symbol_updates_and_cursor_checkpoint_share_one_transaction():
+    source = (ROOT / "app" / "processors.py").read_text()
+    block = source[source.index("def process_massive_reference"):source.index("def process_calendar")]
+    assert "update instruments" in block
+    assert "update work_partitions" in block
+    assert block.index("update instruments") < block.index("update work_partitions") < block.index("conn.commit()")

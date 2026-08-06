@@ -140,6 +140,9 @@ def unlock_confirmation(run_id: str) -> None:
 def _stage_counts(run_id: str, phase: str, stage: str, tranche_key: str | None = None) -> dict[str, int]:
     scope_sql = " and partition_key like %s" if tranche_key else ""
     params: tuple[Any, ...] = (run_id, phase, stage, partition_prefix(tranche_key) + "%") if tranche_key else (run_id, phase, stage)
+    if stage == "massive_reference" and tranche_key is None:
+        # Ignore the retired v1.1.0/v1.1.1 all-tickers partition.
+        scope_sql += " and partition_key like 'symbol-batch-%'"
     row = fetch_one(
         f"""
         select count(*)::int total,
@@ -184,7 +187,7 @@ def advance_run(run: dict[str, Any]) -> None:
                 """
                 update research_runs
                    set status='failed',final_classification='invalid_process',
-                       error='Protocol hash does not match app v1.1.1; create a new staged run',updated_at=now()
+                       error='Protocol hash does not match app v1.1.2; create a new staged run',updated_at=now()
                  where id=%s
                 """,
                 (run_id,),
@@ -231,26 +234,6 @@ def advance_run(run: dict[str, Any]) -> None:
     if not _all_complete(run_id, "primary", "catalogue"):
         return
 
-    if _stage_counts(run_id, "primary", "massive_reference")["total"] == 0:
-        enqueue(run_id, "primary", "massive_reference", "all-tickers", {}, priority=10)
-    if _stage_counts(run_id, phase, "calendar", tranche_key)["total"] == 0:
-        enqueue(
-            run_id, phase, "calendar", scoped_key(tranche_key, f"{phase_start}:{phase_end}"),
-            {"start": phase_start.isoformat(), "end": phase_end.isoformat(), "tranche_key": tranche_key}, priority=5,
-        )
-    if not _all_complete(run_id, phase, "calendar", tranche_key):
-        _update_progress(run_id, phase, tranche_key)
-        return
-
-    if _stage_counts(run_id, phase, "splits", tranche_key)["total"] == 0:
-        enqueue(
-            run_id, phase, "splits", scoped_key(tranche_key, f"{phase_start}:{phase_end}"),
-            {"start": phase_start.isoformat(), "end": phase_end.isoformat(), "tranche_key": tranche_key}, priority=10,
-        )
-    if not _all_complete(run_id, phase, "splits", tranche_key):
-        _update_progress(run_id, phase, tranche_key)
-        return
-
     if run["run_kind"] == "smoke":
         smoke = settings.smoke_symbol_list
         symbols = [r["symbol"] for r in fetch_all(
@@ -269,6 +252,30 @@ def advance_run(run: dict[str, Any]) -> None:
                 (run_id,),
             )
             conn.commit()
+        return
+
+    if _stage_counts(run_id, "primary", "massive_reference")["total"] == 0:
+        for index, group in enumerate(_batch(symbols, settings.symbol_batch_size_massive)):
+            enqueue(
+                run_id, "primary", "massive_reference", f"symbol-batch-{index:05d}",
+                {"symbols": group}, priority=10,
+            )
+    if _stage_counts(run_id, phase, "calendar", tranche_key)["total"] == 0:
+        enqueue(
+            run_id, phase, "calendar", scoped_key(tranche_key, f"{phase_start}:{phase_end}"),
+            {"start": phase_start.isoformat(), "end": phase_end.isoformat(), "tranche_key": tranche_key}, priority=5,
+        )
+    if not _all_complete(run_id, phase, "calendar", tranche_key):
+        _update_progress(run_id, phase, tranche_key)
+        return
+
+    if _stage_counts(run_id, phase, "splits", tranche_key)["total"] == 0:
+        enqueue(
+            run_id, phase, "splits", scoped_key(tranche_key, f"{phase_start}:{phase_end}"),
+            {"start": phase_start.isoformat(), "end": phase_end.isoformat(), "tranche_key": tranche_key}, priority=10,
+        )
+    if not _all_complete(run_id, phase, "splits", tranche_key):
+        _update_progress(run_id, phase, tranche_key)
         return
 
     if _stage_counts(run_id, phase, "daily_bars", tranche_key)["total"] == 0:
