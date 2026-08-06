@@ -18,7 +18,7 @@ from app.config import get_settings
 from app.db import connection, fetch_all, fetch_one
 from app.orchestrator import _update_progress
 from app.protocol import PROTOCOL
-from app.providers import AlpacaClient, InvalidTickerParameter, MassiveClient
+from app.providers import AlpacaClient, InvalidAlpacaSymbol, InvalidTickerParameter, MassiveClient
 from app.queue import complete, enqueue, heartbeat, is_cancelled
 from app.simulation import simulate_target
 from app.storage import StorageClient
@@ -32,6 +32,52 @@ COMMON_STOCK_TYPES = {"CS"}
 
 def _valid_symbol(symbol: str) -> bool:
     return bool(SYMBOL_RE.fullmatch(symbol)) and any(ch.isalpha() for ch in symbol)
+
+
+
+
+def _exclude_invalid_alpaca_market_data_symbol(run_id: str, symbol: str, *, endpoint: str) -> None:
+    """Audit a provider-format exclusion and remove it from later market-data stages."""
+    with connection() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            update instruments
+               set legacy_universe_eligible=false,
+                   expanded_universe_eligible=false,
+                   metadata=metadata || %s,
+                   updated_at=now()
+             where run_id=%s and symbol=%s
+            """,
+            (
+                Jsonb({
+                    "alpaca_market_data_lookup": {
+                        "status": "invalid_symbol",
+                        "symbol": symbol,
+                        "endpoint": endpoint,
+                        "app_version": "1.1.5",
+                        "research_impact": "excluded_from_all_market_data_cohorts",
+                    }
+                }),
+                run_id,
+                symbol,
+            ),
+        )
+        conn.commit()
+
+
+def _daily_bar_count(run_id: str, phase: str, symbols: list[str], start: date, end: date) -> int:
+    if not symbols:
+        return 0
+    row = fetch_one(
+        """
+        select count(*)::int total
+          from daily_bars
+         where run_id=%s and phase=%s and symbol=any(%s)
+           and trade_date between %s and %s
+        """,
+        (run_id, phase, symbols, start - timedelta(days=10), end + timedelta(days=2)),
+    )
+    return int((row or {}).get("total") or 0)
 
 
 def process_partition(partition: dict[str, Any]) -> None:
@@ -184,7 +230,7 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
                         "massive_lookup": {
                             "status": lookup_status,
                             "symbol": symbol,
-                            "app_version": "1.1.4",
+                            "app_version": "1.1.5",
                             "research_impact": "excluded_from_massive_reference_sensitivity_only",
                         }
                     }),
@@ -205,7 +251,7 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
                     ticker_type in COMMON_STOCK_TYPES,
                     Jsonb({
                         "massive": row,
-                        "massive_lookup": {"status": lookup_status, "app_version": "1.1.4"},
+                        "massive_lookup": {"status": lookup_status, "app_version": "1.1.5"},
                     }),
                     partition["run_id"],
                     symbol,
@@ -220,7 +266,7 @@ def process_massive_reference(partition: dict[str, Any]) -> None:
                         "massive_lookup": {
                             "status": "not_found",
                             "symbol": symbol,
-                            "app_version": "1.1.4",
+                            "app_version": "1.1.5",
                         }
                     }),
                     partition["run_id"],
@@ -343,46 +389,98 @@ def _bar_rows(payload: dict[str, Any]) -> Iterator[tuple[str, dict[str, Any]]]:
 
 def process_daily_bars(partition: dict[str, Any]) -> None:
     params = partition["params"]
-    symbols = list(params["symbols"])
+    original_symbols = [str(symbol).upper() for symbol in params["symbols"]]
     phase_start = date.fromisoformat(params["start"])
     phase_end = date.fromisoformat(params["end"])
     start_dt = datetime.combine(phase_start - timedelta(days=10), time.min, tzinfo=timezone.utc)
     end_dt = datetime.combine(phase_end + timedelta(days=2), time.min, tzinfo=timezone.utc)
-    token = (partition.get("cursor") or {}).get("page_token")
+    cursor = dict(partition.get("cursor") or {})
+    invalid_symbols = {str(symbol).upper() for symbol in cursor.get("invalid_symbols", [])}
+    token = cursor.get("page_token")
     total = int(partition.get("row_count") or 0)
     client = AlpacaClient()
-    for payload in client.bars_pages(symbols, "1Day", start_dt, end_dt, page_token=token):
-        values: list[tuple[Any, ...]] = []
-        for symbol, row in _bar_rows(payload):
-            ts = parse_timestamp(row["t"])
-            values.append(
-                (
-                    partition["run_id"], partition["phase"], symbol, ts.date(), ts,
-                    row.get("o"), row.get("h"), row.get("l"), row.get("c"), row.get("v"),
-                    row.get("vw"), row.get("n"), settings.alpaca_feed,
-                )
+
+    while True:
+        symbols = [symbol for symbol in original_symbols if symbol not in invalid_symbols]
+        if not symbols:
+            complete(
+                str(partition["id"]),
+                row_count=0,
+                cursor={"finished": True, "invalid_symbols": sorted(invalid_symbols)},
             )
-        if values:
-            with connection() as conn, conn.cursor() as cur:
-                cur.executemany(
-                    """
-                    insert into daily_bars(
-                        run_id,phase,symbol,trade_date,ts,open,high,low,close,volume,vwap,trade_count,source_feed
-                    ) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                    on conflict(run_id,phase,symbol,trade_date) do update set
-                        ts=excluded.ts,open=excluded.open,high=excluded.high,low=excluded.low,
-                        close=excluded.close,volume=excluded.volume,vwap=excluded.vwap,
-                        trade_count=excluded.trade_count,source_feed=excluded.source_feed
-                    """,
-                    values,
+            return
+        try:
+            for payload in client.bars_pages(symbols, "1Day", start_dt, end_dt, page_token=token):
+                values: list[tuple[Any, ...]] = []
+                for symbol, row in _bar_rows(payload):
+                    ts = parse_timestamp(row["t"])
+                    values.append(
+                        (
+                            partition["run_id"], partition["phase"], symbol, ts.date(), ts,
+                            row.get("o"), row.get("h"), row.get("l"), row.get("c"), row.get("v"),
+                            row.get("vw"), row.get("n"), settings.alpaca_feed,
+                        )
+                    )
+                if values:
+                    with connection() as conn, conn.cursor() as cur:
+                        cur.executemany(
+                            """
+                            insert into daily_bars(
+                                run_id,phase,symbol,trade_date,ts,open,high,low,close,volume,vwap,trade_count,source_feed
+                            ) values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            on conflict(run_id,phase,symbol,trade_date) do update set
+                                ts=excluded.ts,open=excluded.open,high=excluded.high,low=excluded.low,
+                                close=excluded.close,volume=excluded.volume,vwap=excluded.vwap,
+                                trade_count=excluded.trade_count,source_feed=excluded.source_feed
+                            """,
+                            values,
+                        )
+                        conn.commit()
+                    total += len(values)
+                token = payload.get("next_page_token")
+                heartbeat(
+                    str(partition["id"]),
+                    cursor={"page_token": token, "invalid_symbols": sorted(invalid_symbols)},
+                    row_count=total,
                 )
-                conn.commit()
-            total += len(values)
-        token = payload.get("next_page_token")
-        heartbeat(str(partition["id"]), cursor={"page_token": token}, row_count=total)
-        if is_cancelled(str(partition["run_id"])):
-            raise RuntimeError("Run cancelled")
-    complete(str(partition["id"]), row_count=total)
+                if is_cancelled(str(partition["run_id"])):
+                    raise RuntimeError("Run cancelled")
+            break
+        except InvalidAlpacaSymbol as exc:
+            bad_symbol = exc.symbol.upper()
+            if bad_symbol not in original_symbols or bad_symbol in invalid_symbols:
+                raise
+            invalid_symbols.add(bad_symbol)
+            _exclude_invalid_alpaca_market_data_symbol(
+                str(partition["run_id"]), bad_symbol, endpoint="v2/stocks/bars"
+            )
+            # Alpaca page tokens are query-specific. Restart the reduced symbol set;
+            # prior rows are idempotently upserted and the final count is recomputed.
+            token = None
+            total = _daily_bar_count(
+                str(partition["run_id"]), str(partition["phase"]),
+                [symbol for symbol in original_symbols if symbol not in invalid_symbols],
+                phase_start, phase_end,
+            )
+            heartbeat(
+                str(partition["id"]),
+                cursor={
+                    "page_token": None,
+                    "invalid_symbols": sorted(invalid_symbols),
+                    "last_invalid_symbol": bad_symbol,
+                },
+                row_count=total,
+            )
+
+    valid_symbols = [symbol for symbol in original_symbols if symbol not in invalid_symbols]
+    final_count = _daily_bar_count(
+        str(partition["run_id"]), str(partition["phase"]), valid_symbols, phase_start, phase_end
+    )
+    complete(
+        str(partition["id"]),
+        row_count=final_count,
+        cursor={"finished": True, "invalid_symbols": sorted(invalid_symbols)},
+    )
 
 
 def process_decision_snapshot(partition: dict[str, Any]) -> None:
@@ -393,13 +491,30 @@ def process_decision_snapshot(partition: dict[str, Any]) -> None:
     start_dt = decision_ts - timedelta(minutes=settings.decision_lookback_minutes)
     latest: dict[str, dict[str, Any]] = {}
     client = AlpacaClient()
-    for payload in client.bars_pages(symbols, "1Min", start_dt, decision_ts, limit=10000):
-        for symbol, row in _bar_rows(payload):
-            ts = parse_timestamp(row["t"])
-            if ts + timedelta(minutes=1) <= decision_ts:
-                current = latest.get(symbol)
-                if current is None or parse_timestamp(current["t"]) < ts:
-                    latest[symbol] = row
+    invalid_symbols: set[str] = set()
+    while True:
+        active_symbols = [symbol for symbol in symbols if symbol not in invalid_symbols]
+        if not active_symbols:
+            symbols = []
+            break
+        try:
+            for payload in client.bars_pages(active_symbols, "1Min", start_dt, decision_ts, limit=10000):
+                for symbol, row in _bar_rows(payload):
+                    ts = parse_timestamp(row["t"])
+                    if ts + timedelta(minutes=1) <= decision_ts:
+                        current = latest.get(symbol)
+                        if current is None or parse_timestamp(current["t"]) < ts:
+                            latest[symbol] = row
+            symbols = active_symbols
+            break
+        except InvalidAlpacaSymbol as exc:
+            bad_symbol = exc.symbol.upper()
+            if bad_symbol not in active_symbols:
+                raise
+            invalid_symbols.add(bad_symbol)
+            _exclude_invalid_alpaca_market_data_symbol(
+                str(partition["run_id"]), bad_symbol, endpoint="v2/stocks/bars:1Min"
+            )
 
     context_rows = fetch_all(
         """

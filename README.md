@@ -1,19 +1,24 @@
-# Alpaca 13.8% Execution Research Lab v1.1.4
+# Alpaca 13.8% Execution Research Lab v1.1.5
 
-## v1.1.4 invalid ticker repair
+## v1.1.5 Alpaca invalid-symbol repair
 
-Massive may reject certain Alpaca preferred-share, right or unit symbols with HTTP 400 `Invalid ticker parameter`. These symbols are now audited as provider-format coverage exclusions and skipped without failing their entire 100-symbol partition. The frozen protocol and existing run remain unchanged.
+Alpaca's multi-symbol bars endpoint rejects the synthetic/internal asset symbol `E018385`. In prior releases, that permanent HTTP 400 caused the complete 100-symbol Daily Bars partition to retry eight times and fail.
 
-Operational hotfix for the frozen v1.1.0 quarterly research protocol.
+v1.1.5 converts only Alpaca HTTP 400 responses containing `invalid symbol: <ticker>` into an audited per-symbol coverage exclusion. It then:
 
-## v1.1.4 SQL wildcard repair
+- marks the affected instrument in metadata;
+- removes it from all later market-data cohorts;
+- restarts the reduced multi-symbol request safely;
+- idempotently upserts any already-downloaded bars;
+- recomputes the partition's unique row count;
+- applies the same protection to Decision Snapshot requests.
 
-v1.1.2 correctly replaced the global Massive catalogue crawl with exact-symbol batches, but the stage-count query embedded a literal `%` wildcard inside a parameterised psycopg query. Psycopg interpreted it as invalid placeholder syntax and the worker loop failed before it could enqueue or process the new batches.
+Other HTTP 400 responses still fail normally. Existing runs, quarterly checkpoints and completed partitions remain intact.
 
-v1.1.4 binds `symbol-batch-%` as a normal SQL parameter. The research protocol, threshold, execution assumptions, tranche sequence and protocol hash are unchanged. Existing runs resume in place.
+## Research integrity
 
-## Recovery
+The frozen threshold, execution assumptions, quarterly sequence, futility rule and protocol hash are unchanged. This is an operational data-quality repair, not a strategy change.
 
-Suspend the worker, deploy v1.1.4 to the web service, confirm `/health` reports `1.1.4`, then resume and deploy the worker. No migration, manual SQL, new run or cancellation is required.
+## Upgrade
 
-See `DEPLOYMENT.md` for the short procedure.
+Suspend the worker, deploy v1.1.5 to the web service, confirm `/health` reports `1.1.5`, then resume and deploy the worker. Select **Retry and resume** once. No migration or new run is required.

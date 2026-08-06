@@ -156,3 +156,16 @@ def test_massive_invalid_ticker_errors_are_audited_not_retried_forever():
     assert "raise InvalidTickerParameter(symbol)" in providers
     assert 'lookup_status = "invalid_ticker_parameter"' in processors
     assert '"research_impact": "excluded_from_massive_reference_sensitivity_only"' in processors
+
+
+def test_alpaca_invalid_market_data_symbols_are_audited_and_excluded():
+    providers = (ROOT / "app" / "providers.py").read_text()
+    processors = (ROOT / "app" / "processors.py").read_text()
+    assert "class InvalidAlpacaSymbol" in providers
+    assert "invalid symbol:" in providers
+    assert "raise InvalidAlpacaSymbol" in providers
+    assert "_exclude_invalid_alpaca_market_data_symbol" in processors
+    assert '"research_impact": "excluded_from_all_market_data_cohorts"' in processors
+    assert "legacy_universe_eligible=false" in processors
+    assert "expanded_universe_eligible=false" in processors
+    assert "last_invalid_symbol" in processors

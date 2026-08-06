@@ -20,7 +20,7 @@ if missing:
 manifest_path = root / "PACKAGE_MANIFEST.json"
 if manifest_path.exists():
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("version") != "1.1.4":
+    if manifest.get("version") != "1.1.5":
         raise SystemExit("Unexpected package version")
     listed = {item["path"]: item for item in manifest["files"]}
     actual = {

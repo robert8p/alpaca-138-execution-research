@@ -1,10 +1,10 @@
 {
   "package": "Alpaca 13.8% Execution Research Lab",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "protocol_version": "1.1.0",
   "protocol_hash": "ddce449bdd0c6dc6f720e67ff6964bb1dbbe37d6b7429c5455eded1afd630ca2",
-  "built_at_utc": "2026-08-06T07:21:17.054819+00:00",
-  "file_count_excluding_manifest": 53,
+  "built_at_utc": "2026-08-06T09:35:31.964542+00:00",
+  "file_count_excluding_manifest": 54,
   "files": [
     {
       "path": ".dockerignore",
@@ -33,13 +33,13 @@
     },
     {
       "path": "BUILD_VALIDATION.md",
-      "size_bytes": 518,
-      "sha256": "f7abe282ca1c55ed8a43a0cb971b3a96d1d4f81c599cef92da931edb7a40fef4"
+      "size_bytes": 795,
+      "sha256": "d9189542a1bd2a1730b0395b906a8cdaffed2792b1cc51b2635e7fede0de161d"
     },
     {
       "path": "DEPLOYMENT.md",
-      "size_bytes": 672,
-      "sha256": "b99171cb9f01a1facb358650b405070bffdab6ad74e005d8a7b11aa42319c433"
+      "size_bytes": 656,
+      "sha256": "218391c51d3f9163f2928425f7ed18edbd03130240b78df08e67217f7f5e94a1"
     },
     {
       "path": "Dockerfile",
@@ -53,18 +53,18 @@
     },
     {
       "path": "README.md",
-      "size_bytes": 1243,
-      "sha256": "396bc68b97d8b88d7435a349a1349b5da063c6a4865597ca01d5dfb2e67bd789"
+      "size_bytes": 1287,
+      "sha256": "baababc6ac366bec318fbfd668684c3cb7f8219e8f88036df845b587cd77cb5d"
     },
     {
       "path": "TROUBLESHOOTING.md",
-      "size_bytes": 432,
-      "sha256": "6646d7f3055cac3d018a43875985ba0378f2d3cfca418568039dd326f8f5b78d"
+      "size_bytes": 713,
+      "sha256": "c58fd1452d3df083e8ae74abeea77a9c5939a1390b53cfd1830b8a6d7ec2bf29"
     },
     {
       "path": "app/__init__.py",
       "size_bytes": 22,
-      "sha256": "5f15e1bbcf909ee0fd840f00874597e6b829b7f0f0390980c1c2be16da678324"
+      "sha256": "2a581a552275010c420c9660878c0593e8297a6fa4f4f7de6d6f14de188a243e"
     },
     {
       "path": "app/config.py",
@@ -108,18 +108,18 @@
     },
     {
       "path": "app/processors.py",
-      "size_bytes": 46034,
-      "sha256": "835caa6f4260943f37a57cee64760993bff879fbfa58b4f1c49326051c53c9c5"
+      "size_bytes": 50682,
+      "sha256": "c2425ee7896528dabc26d6059c550e73b2e8937ebc2ccc027cf31b3e3003b9e8"
     },
     {
       "path": "app/protocol.py",
       "size_bytes": 7589,
-      "sha256": "90ef5338fd5ad21157b40309c9209a85d6821b5a0890eb3174461386156b8ff3"
+      "sha256": "54fd18b90b7c2cc29bde8fe80559410dde4eac81b0776baa35edac7f1a47107f"
     },
     {
       "path": "app/providers.py",
-      "size_bytes": 7484,
-      "sha256": "8e620e30c576b426374670c1e486f72298431b26ad9092fd284ed9c8add0b9c2"
+      "size_bytes": 8105,
+      "sha256": "55e04eb2ddab0c87e2d251cd3a5c42bbdf983f4d8387d83b7e65b24f10f56919"
     },
     {
       "path": "app/queue.py",
@@ -179,7 +179,7 @@
     {
       "path": "app/worker.py",
       "size_bytes": 2315,
-      "sha256": "835bc1d083d582c0b5a4a6c6ddc9dd55120f4311d66b53ec056821267f7d476c"
+      "sha256": "feab1a511569f0eb5b3b8d53e457725dfb413dd49b6a3184cb8f214a6f423a8c"
     },
     {
       "path": "docs/ARCHITECTURE.md",
@@ -214,12 +214,17 @@
     {
       "path": "scripts/check_package.py",
       "size_bytes": 2015,
-      "sha256": "7a07b7adb4c7d62e4f3eef3098965c647f1e5f9988e59304995c06c83768d0d7"
+      "sha256": "e2734a95ebf96fb08cad7b506f2760ceb11852f82c5ed853bd843863e80a871d"
     },
     {
       "path": "tests/conftest.py",
       "size_bytes": 1957,
       "sha256": "1fb144da16d15fa88b158ff0d6c81a3ee2bc5db0f4dbd34296431ccfa84170f3"
+    },
+    {
+      "path": "tests/test_alpaca_invalid_symbol.py",
+      "size_bytes": 4569,
+      "sha256": "f6cb645a9fc96ff80a63f3f8a1629b478bcb1e6d836c0024a65c8b020194e0e1"
     },
     {
       "path": "tests/test_config.py",
@@ -233,8 +238,8 @@
     },
     {
       "path": "tests/test_integrity_static.py",
-      "size_bytes": 7289,
-      "sha256": "4033b46991c8d9be6ad63bc807013877650243ba490c2f36461c47e7d58e0890"
+      "size_bytes": 7952,
+      "sha256": "3a37050643e44055652bc3066ad36d9b8d4e6f3940c3f0123319c757ce897c56"
     },
     {
       "path": "tests/test_massive_reference.py",

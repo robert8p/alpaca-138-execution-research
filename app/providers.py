@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import re
 from typing import Any, Iterator
 
 from app.config import get_settings
@@ -13,6 +14,14 @@ class InvalidTickerParameter(RuntimeError):
 
     def __init__(self, symbol: str) -> None:
         super().__init__(f"Massive rejected ticker parameter: {symbol}")
+        self.symbol = symbol
+
+
+class InvalidAlpacaSymbol(RuntimeError):
+    """Alpaca market data rejected one symbol in a multi-symbol request."""
+
+    def __init__(self, symbol: str) -> None:
+        super().__init__(f"Alpaca rejected market-data symbol: {symbol}")
         self.symbol = symbol
 
 
@@ -73,7 +82,14 @@ class AlpacaClient:
             }
             if token:
                 params["page_token"] = token
-            payload = self._get(f"{self.data_base}/v2/stocks/bars", params)
+            try:
+                payload = self._get(f"{self.data_base}/v2/stocks/bars", params)
+            except ApiError as exc:
+                message = str(exc)
+                match = re.search(r"invalid symbol:\s*([A-Za-z0-9.\-]+)", message, re.IGNORECASE)
+                if "HTTP 400" in message and match:
+                    raise InvalidAlpacaSymbol(match.group(1).upper()) from exc
+                raise
             yield payload
             token = payload.get("next_page_token")
             if not token:
