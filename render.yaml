@@ -3,7 +3,7 @@ services:
     name: alpaca-138-research-web
     runtime: docker
     region: frankfurt
-    plan: starter
+    plan: free
     healthCheckPath: /health
     preDeployCommand: python -m app.migrate
     maxShutdownDelaySeconds: 60
@@ -31,7 +31,7 @@ services:
     name: alpaca-138-research-worker
     runtime: docker
     region: frankfurt
-    plan: pro
+    plan: standard
     dockerCommand: python -m app.worker
     disk:
       name: alpaca-138-worker-data
