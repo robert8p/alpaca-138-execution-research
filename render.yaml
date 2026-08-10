@@ -31,7 +31,7 @@ services:
     name: alpaca-138-research-worker
     runtime: docker
     region: frankfurt
-    plan: standard
+    plan: pro
     dockerCommand: python -m app.worker
     disk:
       name: alpaca-138-worker-data
