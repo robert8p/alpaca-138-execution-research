@@ -31,12 +31,8 @@ services:
     name: alpaca-138-research-worker
     runtime: docker
     region: frankfurt
-    plan: pro
+    plan: starter
     dockerCommand: python -m app.worker
-    disk:
-      name: alpaca-138-worker-data
-      mountPath: /var/data
-      sizeGB: 10
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -81,6 +77,6 @@ services:
       - key: DECISION_LOOKBACK_MINUTES
         value: "60"
       - key: TEMP_DATA_DIR
-        value: /var/data
+        value: /tmp/alpaca-138
       - key: LOG_LEVEL
         value: INFO
