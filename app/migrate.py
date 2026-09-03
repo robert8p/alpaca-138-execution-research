@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 
-from app.db import connection
+
+def _retired() -> bool:
+    return os.getenv("LEGACY_RETIRED", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def run_migrations() -> None:
+    if _retired():
+        print("Legacy A138 service retired; database migrations skipped")
+        return
+
+    # Importing the database layer only after the retirement guard ensures that
+    # a retired pre-deploy command cannot initialise a legacy connection.
+    from app.db import connection
+
     root = Path(__file__).resolve().parents[1] / "migrations"
     with connection() as conn, conn.cursor() as cur:
         cur.execute(
