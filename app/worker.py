@@ -1,19 +1,26 @@
 from __future__ import annotations
 
 import logging
+import os
 import signal
 import sys
 import time
 
-from app.config import get_settings
-from app.db import close_pool, open_pool
-from app.orchestrator import advance_all
-from app.processors import process_partition
-from app.queue import claim, fail
+_RETIRED = os.getenv("LEGACY_RETIRED", "").strip().lower() in {"1", "true", "yes", "on"}
 
-settings = get_settings()
+if not _RETIRED:
+    from app.config import get_settings
+    from app.db import close_pool, open_pool
+    from app.orchestrator import advance_all
+    from app.processors import process_partition
+    from app.queue import claim, fail
+
+    settings = get_settings()
+else:
+    settings = None
+
 logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper(), logging.INFO),
+    level=getattr(logging, (settings.log_level if settings else "INFO").upper(), logging.INFO),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("alpaca_138.worker")
@@ -27,6 +34,11 @@ def _stop(signum, _frame) -> None:
 
 
 def main() -> None:
+    if _RETIRED:
+        logger.info("Legacy A138 worker retired; database client was not initialised")
+        return
+
+    assert settings is not None
     settings.validate_worker()
     settings.ensure_temp_dir()
     signal.signal(signal.SIGTERM, _stop)
