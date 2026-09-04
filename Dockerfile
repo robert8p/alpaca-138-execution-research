@@ -12,4 +12,4 @@ COPY . .
 RUN mkdir -p /var/data
 
 EXPOSE 8000
-CMD ["sh", "-c", "if [ \"${LEGACY_RETIRED:-false}\" = \"true\" ]; then exec uvicorn app.retired:app --host 0.0.0.0 --port ${PORT:-8000}; else exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}; fi"]
+CMD ["sh", "-c", "if [ \"${LEGACY_RETIRED:-true}\" = \"true\" ]; then exec uvicorn app.retired:app --host 0.0.0.0 --port ${PORT:-8000}; else exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}; fi"]
