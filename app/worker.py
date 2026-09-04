@@ -6,7 +6,7 @@ import signal
 import sys
 import time
 
-_RETIRED = os.getenv("LEGACY_RETIRED", "").strip().lower() in {"1", "true", "yes", "on"}
+_RETIRED = os.getenv("LEGACY_RETIRED", "true").strip().lower() in {"1", "true", "yes", "on"}
 
 if not _RETIRED:
     from app.config import get_settings
